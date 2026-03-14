@@ -183,10 +183,13 @@ def main() -> None:
         load_dotenv(env_path, override=True)
     else:
         load_dotenv(override=True)
-    token = os.getenv("HCLOUD_TOKEN")
+    raw_token = os.getenv("HCLOUD_TOKEN", "")
+    token = raw_token.strip()
     if not token:
         logger.critical("HCLOUD_TOKEN is not set in environment or .env file.")
         sys.exit(1)
+    if len(raw_token) != len(token):
+        logger.warning(f"Token had {len(raw_token) - len(token)} leading/trailing whitespace chars — stripped.")
 
     client = Client(token=token)
 
