@@ -126,33 +126,26 @@ def destroy(client: Client, server: Server, skip_confirm: bool = False) -> None:
             logger.info("Aborted — nothing was deleted.")
             return
 
-    # ── Detach & delete firewalls ──────────────────────────────
-    for fw in firewalls:
-        logger.info(f"Detaching firewall '{fw.name}' from server...")
-        try:
-            actions = server.remove_from_firewall(fw)
-            for action in actions:
-                action.wait_until_finished()
-        except Exception as exc:
-            logger.warning(f"Could not detach firewall (may already be detached): {exc}")
+    # ── Delete server first — this auto-detaches all firewalls ──
+    # Deleting the server releases its primary IPv4/IPv6 back to the pool.
+    logger.info(f"Deleting server '{server.name}' (releases IPv4 {server_ip})...")
+    try:
+        result = client.servers.delete(server)
+        logger.info("Waiting for server deletion to complete...")
+        result.wait_until_finished()
+        logger.info(f"Server '{server.name}' deleted. IPv4 {server_ip} released.")
+    except Exception as exc:
+        logger.error(f"Failed to delete server: {exc}")
+        raise
 
+    # ── Delete now-detached firewalls ──────────────────────────
+    for fw in firewalls:
         logger.info(f"Deleting firewall '{fw.name}'...")
         try:
             client.firewalls.delete(fw)
             logger.info(f"Firewall '{fw.name}' deleted.")
         except Exception as exc:
             logger.error(f"Failed to delete firewall '{fw.name}': {exc}")
-
-    # ── Delete server ──────────────────────────────────────────
-    # This automatically releases the primary IPv4 and IPv6 back to the pool.
-    logger.info(f"Deleting server '{server.name}' (releases IPv4 {server_ip})...")
-    try:
-        result = client.servers.delete(server)
-        result.action.wait_until_finished()
-        logger.info(f"Server '{server.name}' deleted. IPv4 {server_ip} released.")
-    except Exception as exc:
-        logger.error(f"Failed to delete server: {exc}")
-        raise
 
     # ── Clean up orphaned provisioning SSH keys ────────────────
     for key in prov_keys:
@@ -185,7 +178,11 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    load_dotenv()
+    env_path = "/app/.env"
+    if os.path.isfile(env_path):
+        load_dotenv(env_path, override=True)
+    else:
+        load_dotenv(override=True)
     token = os.getenv("HCLOUD_TOKEN")
     if not token:
         logger.critical("HCLOUD_TOKEN is not set in environment or .env file.")

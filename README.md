@@ -41,6 +41,67 @@ point, but significantly reworked and extended it:
 
 ---
 
+## Provisioning Flow
+
+```mermaid
+sequenceDiagram
+    participant H as Host (you)
+    participant C as Container<br/>(provision.py)
+    participant API as Hetzner API
+    participant VM as Ubuntu 24.04 VM
+
+    Note over H,C: ./run.sh
+
+    H->>C: Start provisioner container
+    C->>C: Generate RSA-4096 keypair
+    C->>H: Save private key → ./keys/id_rsa
+    C->>API: Upload public key (prov-key-*)
+    C->>API: Create firewall (port 22 only)
+    C->>API: Create VM (with key + firewall)
+    API-->>C: VM ready — IP address
+
+    rect rgb(220, 240, 220)
+        Note over C,VM: Phase 1 — Immediate Lockdown (~30s, no apt)
+        C->>VM: SSH root@IP:22 (key auth)
+        C->>VM: Upload public key → /tmp/provisioner_pub_key
+        C->>VM: Upload & run harden-phase1.sh
+        Note right of VM: Create user svc_<hex><br/>Install SSH key for user<br/>Write sshd_config (new port)<br/>Disable ssh.socket<br/>UFW deny-all + allow new port<br/>sysctl hardening<br/>Lock root, randomise hostname
+        VM-->>C: Script exits 0
+        C->>VM: systemctl restart ssh
+        Note right of VM: sshd restarts on<br/>random high port
+        C->>VM: ss -tlnp (verify new port)
+        C->>C: Close SSH session
+    end
+
+    C->>API: Firewall: close port 22, open random port
+    C->>API: Delete prov-key-*
+
+    rect rgb(220, 225, 245)
+        Note over C,VM: Phase 2 — Full CIS Hardening (several minutes)
+        C->>VM: SSH user@IP:random_port (key auth)
+        C->>VM: Upload & run harden-phase2.sh (sudo)
+        Note right of VM: apt full-upgrade<br/>Remove unnecessary services<br/>AppArmor, auditd, AIDE<br/>SSH cipher/MAC hardening<br/>PAM lockout + password policy<br/>fail2ban, rkhunter, logwatch<br/>msmtp (email alerts)<br/>Podman rootless
+        VM-->>C: Script exits 0
+    end
+
+    C-->>H: Done — print connection details
+    Note over H: ssh -i ./keys/id_rsa<br/>-p <random_port><br/>user@IP
+```
+
+### Key flow
+
+```mermaid
+flowchart LR
+    K["RSA-4096<br/>keypair"] -->|private| F["./keys/id_rsa<br/>(host)"]
+    K -->|public| HZ["Hetzner API<br/>prov-key-*"]
+    HZ -->|cloud-init| R["/root/.ssh/<br/>authorized_keys"]
+    K -->|public via SFTP| U["/home/user/.ssh/<br/>authorized_keys"]
+    HZ -.->|deleted after<br/>Phase 1| X((🗑))
+
+    style X fill:#fee,stroke:#c00
+    style HZ fill:#ffe,stroke:#aa0
+```
+
 ---
 
 ## How It Works

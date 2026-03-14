@@ -128,7 +128,7 @@ def wait_for_ssh(
                 return client
             client.close()
         except Exception as exc:
-            logger.debug(f"SSH not ready: {exc}")
+            logger.info(f"SSH not ready yet on port {port} ({exc}); retrying in 5s...")
             time.sleep(5)
     raise TimeoutError(f"SSH at {ip}:{port} did not become available within {timeout}s.")
 
@@ -169,7 +169,7 @@ def execute_remote_script(
     sudo = "sudo " if use_sudo else ""
     cmd  = f"chmod +x {remote_path} && {sudo}{remote_path} {args}".strip()
     logger.info(f"Executing: {cmd}")
-    _, stdout, stderr = ssh_client.exec_command(cmd, get_pty=True)
+    _, stdout, stderr = ssh_client.exec_command(cmd)
 
     for line in iter(stdout.readline, ""):
         logger.info(f"  [remote] {line.rstrip()}")
@@ -188,7 +188,7 @@ def execute_remote_script(
 def lockdown_firewall(firewall, ssh_port: int) -> None:
     """Replace all inbound rules with: only the new SSH port."""
     logger.info(f"Locking down Hetzner firewall — closing port 22, opening {ssh_port}/tcp ...")
-    firewall.set_rules([
+    actions = firewall.set_rules([
         FirewallRule(
             direction="in",
             protocol="tcp",
@@ -196,6 +196,8 @@ def lockdown_firewall(firewall, ssh_port: int) -> None:
             source_ips=["0.0.0.0/0", "::/0"],
         )
     ])
+    for action in actions:
+        action.wait_until_finished()
     logger.info("Hetzner firewall locked down.")
 
 
@@ -325,14 +327,38 @@ def main() -> None:
             args=f"{new_user} {ssh_port}",
             use_sudo=False,
         )
+        logger.info("Phase 1 script finished.")
+
+        # Restart sshd through the SAME session.  Ubuntu 24.04 ssh.service
+        # uses KillMode=process — the main listener is killed but our
+        # session's child process survives, so this command completes normally.
+        logger.info(f"Restarting sshd to apply new config (port {ssh_port})...")
+        _, stdout, _ = ssh_client.exec_command("systemctl restart ssh")
+        rc = stdout.channel.recv_exit_status()
+        logger.info(f"sshd restarted (exit {rc}).")
+
+        # Verify sshd is now listening on the new port
+        _, stdout, _ = ssh_client.exec_command(f"ss -tlnp | grep :{ssh_port}")
+        ss_out = stdout.read().decode().strip()
+        if str(ssh_port) in ss_out:
+            logger.info(f"Verified: sshd listening on port {ssh_port}")
+        else:
+            logger.warning(f"sshd NOT on port {ssh_port}. Collecting diagnostics...")
+            diag_cmds = [
+                "ss -tlnp | grep sshd || echo '(no sshd listeners found)'",
+                "ls -la /etc/ssh/sshd_config.d/ 2>/dev/null || echo '(dir missing)'",
+                "cat /etc/ssh/sshd_config.d/*.conf 2>/dev/null || echo '(no drop-ins)'",
+                "grep -n '^Port' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf 2>/dev/null || echo '(no Port directives)'",
+                "systemctl status ssh --no-pager -l 2>&1 | head -30",
+                "journalctl -u ssh --no-pager -n 20 2>&1",
+            ]
+            for cmd in diag_cmds:
+                _, out, _ = ssh_client.exec_command(cmd)
+                for line in out.read().decode().splitlines():
+                    logger.warning(f"  [diag] {line}")
+
         ssh_client.close()
         ssh_client = None
-        logger.info("Phase 1 script finished. sshd is restarting on the new port...")
-
-        # Brief pause: let sshd fully restart before we close port 22
-        # (the script backgrounds `sleep 2 && systemctl restart ssh`)
-        logger.info("Waiting 8s for sshd to come up on the new port before firewall lockdown...")
-        time.sleep(8)
 
         # ── Close port 22 at Hetzner level — VM is now locked down ──
         lockdown_firewall(firewall, ssh_port)
@@ -397,7 +423,7 @@ def main() -> None:
             try:
                 action = client.servers.delete(server)
                 logger.warning("Waiting for server deletion to complete...")
-                action.action.wait_until_finished()
+                action.wait_until_finished()
                 logger.warning(f"Server {server.name} deleted.")
             except Exception as e:
                 logger.error(f"Could not delete server: {e}")
