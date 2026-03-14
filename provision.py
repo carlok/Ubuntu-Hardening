@@ -60,6 +60,8 @@ def _setup_logging() -> logging.Logger:
     # Quiet noisy libraries
     logging.getLogger("paramiko.transport").setLevel(logging.WARNING)
     logging.getLogger("hcloud").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
     return logging.getLogger(__name__)
 
 
@@ -204,10 +206,24 @@ def lockdown_firewall(firewall, ssh_port: int) -> None:
 def main() -> None:
     load_dotenv()
 
-    token = os.getenv("HCLOUD_TOKEN")
+    raw_token = os.getenv("HCLOUD_TOKEN", "")
+    token = raw_token.strip()
+
     if not token:
-        logger.critical("HCLOUD_TOKEN is not set. Aborting.")
+        logger.critical("HCLOUD_TOKEN is not set or is empty. Aborting.")
         return
+
+    # Diagnostic — never logs the actual token value
+    logger.debug(
+        f"Token diagnostics: len={len(token)} "
+        f"(raw_len={len(raw_token)}) "
+        f"first4={token[:4]!r} "
+        f"last4={token[-4:]!r} "
+        f"has_whitespace={any(c.isspace() for c in token)} "
+        f"has_quotes={token[0] in '\"\\'' or token[-1] in '\"\\'}"
+    )
+    if len(raw_token) != len(token):
+        logger.warning(f"Token had {len(raw_token) - len(token)} leading/trailing whitespace chars — stripped.")
 
     client = Client(token=token)
 
