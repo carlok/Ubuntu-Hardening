@@ -327,12 +327,18 @@ def main() -> None:
         )
         ssh_client.close()
         ssh_client = None
-        logger.info("Phase 1 complete. SSH will restart on the new port momentarily.")
+        logger.info("Phase 1 script finished. sshd is restarting on the new port...")
 
-        # ── Immediately close port 22 at Hetzner level ────────
+        # Brief pause: let sshd fully restart before we close port 22
+        # (the script backgrounds `sleep 2 && systemctl restart ssh`)
+        logger.info("Waiting 8s for sshd to come up on the new port before firewall lockdown...")
+        time.sleep(8)
+
+        # ── Close port 22 at Hetzner level — VM is now locked down ──
         lockdown_firewall(firewall, ssh_port)
 
         # ── Clean up Hetzner SSH key (no longer needed) ───────
+        logger.info("Removing temporary Hetzner provisioning key...")
         client.ssh_keys.delete(hcloud_key)
         hcloud_key = None
         logger.info("Hetzner provisioning key removed.")
@@ -389,7 +395,10 @@ def main() -> None:
         if server:
             logger.warning(f"Deleting server {server.name} ...")
             try:
-                client.servers.delete(server)
+                action = client.servers.delete(server)
+                logger.warning("Waiting for server deletion to complete...")
+                action.action.wait_until_finished()
+                logger.warning(f"Server {server.name} deleted.")
             except Exception as e:
                 logger.error(f"Could not delete server: {e}")
 

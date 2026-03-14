@@ -50,7 +50,7 @@ passwd -l root
 log "Root account locked."
 
 # -------[ 3. Random hostname (obscures server purpose) ]-------
-RANDOM_HOSTNAME="node-$(tr -dc 'a-z0-9' < /dev/urandom | head -c 8)"
+RANDOM_HOSTNAME="node-$(openssl rand -hex 4)"
 hostnamectl set-hostname "$RANDOM_HOSTNAME"
 # Update /etc/hosts so the hostname resolves locally
 sed -i "/127.0.1.1/d" /etc/hosts
