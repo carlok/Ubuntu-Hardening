@@ -421,7 +421,7 @@ def main() -> None:
 
         # Upload SMTP credentials if provided
         if smtp_env_content:
-            upload_string(ssh_client, smtp_env_content, "/var/tmp/smtp.env")
+            upload_string(ssh_client, smtp_env_content, f"/home/{new_user}/smtp.env")
             logger.info("SMTP credentials uploaded for msmtp configuration.")
 
         execute_remote_script(
