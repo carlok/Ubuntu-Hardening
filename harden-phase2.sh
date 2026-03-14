@@ -16,7 +16,7 @@
 #
 # Pre-conditions:
 #   - Phase 1 already ran: user exists, SSH port locked down.
-#   - Optional: /tmp/smtp.env with SMTP credentials for msmtp.
+#   - Optional: /var/tmp/smtp.env with SMTP credentials for msmtp.
 # =============================================================
 
 export DEBIAN_FRONTEND=noninteractive
@@ -447,9 +447,9 @@ run_cmd "systemctl enable --now fail2ban" "Enable fail2ban"
 
 start_section "8.2 — msmtp (lightweight SMTP client)"
 run_cmd "apt-get install -y msmtp msmtp-mta" "Install msmtp + MTA shim"
-if [[ -f /tmp/smtp.env ]]; then
+if [[ -f /var/tmp/smtp.env ]]; then
     # shellcheck source=/dev/null
-    source /tmp/smtp.env
+    source /var/tmp/smtp.env
     cat > /etc/msmtprc << EOF
 # System-wide msmtp configuration
 defaults
@@ -469,10 +469,10 @@ EOF
     chown root:mail /etc/msmtprc
     # Wire msmtp as the system MTA
     update-alternatives --set mta /usr/bin/msmtp 2>/dev/null || true
-    rm -f /tmp/smtp.env
+    rm -f /var/tmp/smtp.env
     log_ok "msmtp configured with provided SMTP credentials."
 else
-    log_ok "No /tmp/smtp.env found — msmtp installed but not configured. Set SMTP_* in .env to enable."
+    log_ok "No /var/tmp/smtp.env found — msmtp installed but not configured. Set SMTP_* in .env to enable."
 fi
 
 start_section "8.3 — logwatch (daily security digest)"
