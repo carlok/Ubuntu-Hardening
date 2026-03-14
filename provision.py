@@ -214,13 +214,13 @@ def main() -> None:
         return
 
     # Diagnostic — never logs the actual token value
+    quotes = ('"', "'")
+    has_quotes = token[0] in quotes or token[-1] in quotes
+    has_ws = any(c.isspace() for c in token)
     logger.debug(
-        f"Token diagnostics: len={len(token)} "
-        f"(raw_len={len(raw_token)}) "
-        f"first4={token[:4]!r} "
-        f"last4={token[-4:]!r} "
-        f"has_whitespace={any(c.isspace() for c in token)} "
-        f"has_quotes={token[0] in '\"\\'' or token[-1] in '\"\\'}"
+        f"Token diagnostics: len={len(token)} (raw_len={len(raw_token)}) "
+        f"first4={token[:4]!r} last4={token[-4:]!r} "
+        f"has_whitespace={has_ws} has_quotes={has_quotes}"
     )
     if len(raw_token) != len(token):
         logger.warning(f"Token had {len(raw_token) - len(token)} leading/trailing whitespace chars — stripped.")
