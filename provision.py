@@ -204,7 +204,14 @@ def lockdown_firewall(firewall, ssh_port: int) -> None:
 # ─────────────────────────────────────────────────────────────
 
 def main() -> None:
-    load_dotenv()
+    # Try explicit container path first, fall back to cwd search
+    env_path = "/app/.env"
+    if os.path.isfile(env_path):
+        loaded = load_dotenv(env_path, override=True)
+        logger.debug(f"Loaded .env from {env_path} (result={loaded})")
+    else:
+        loaded = load_dotenv(override=True)
+        logger.debug(f"{env_path} not found — load_dotenv() cwd search, result={loaded}")
 
     raw_token = os.getenv("HCLOUD_TOKEN", "")
     token = raw_token.strip()
