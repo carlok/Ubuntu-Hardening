@@ -60,6 +60,10 @@ done' "Disable unnecessary kernel filesystem modules"
 run_cmd "systemctl mask autofs 2>/dev/null || true" "Mask autofs service"
 
 start_section "1.2 — Package updates"
+# Remove pre-installed needrestart dpkg hook — its status-logger deadlocks
+# without a TTY and blocks every package configuration.  We reinstall
+# needrestart properly later in Section 8.
+run_cmd "rm -f /etc/dpkg/dpkg.cfg.d/needrestart" "Remove needrestart dpkg hook (prevents hang)"
 run_cmd "apt-get update -qq" "Update package index"
 run_cmd "apt-get full-upgrade -y" "Apply all security and kernel updates (full-upgrade)"
 run_cmd "apt-get autoremove -y" "Remove obsolete packages"
