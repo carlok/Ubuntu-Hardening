@@ -203,6 +203,14 @@ class TestExecuteRemoteScript:
         ssh = self._mock_ssh(exit_code=-1)
         execute_remote_script(ssh, str(script))  # must not raise
 
+    def test_allow_nonzero_returns_exit_code(self, tmp_path):
+        """allow_nonzero=True should return exit code without raising."""
+        script = tmp_path / "verify.sh"
+        script.write_text("#!/bin/bash")
+        ssh = self._mock_ssh(exit_code=3)
+        result = execute_remote_script(ssh, str(script), allow_nonzero=True)
+        assert result == 3
+
     def test_sftp_retry_on_failure(self, tmp_path):
         script = tmp_path / "test.sh"
         script.write_text("#!/bin/bash")
@@ -250,7 +258,8 @@ class TestWaitForSsh:
     @patch("provision.time.sleep")
     @patch("provision.time.time")
     def test_retries_on_connection_error(self, mock_time, mock_sleep, mock_cls):
-        mock_time.side_effect = [0, 0, 10]
+        # Extra values: time.time() is also called by the log formatter
+        mock_time.side_effect = [0, 0, 0, 0, 0, 10, 10, 10]
         mock_client = self._make_mock_ssh_client()
         mock_cls.return_value = mock_client
         mock_client.connect.side_effect = [Exception("refused"), None]
@@ -264,7 +273,10 @@ class TestWaitForSsh:
     @patch("provision.time.sleep")
     @patch("provision.time.time")
     def test_raises_timeout_error_when_deadline_exceeded(self, mock_time, mock_sleep, mock_cls):
-        mock_time.side_effect = [0, 400]
+        # Extra values: time.time() is also called by the log formatter
+        # Flow: time.time() for deadline, logger.info, while-check, connect fails,
+        # logger.info (retry msg with formatter), sleep, while-check (> deadline)
+        mock_time.side_effect = [0, 0, 0, 0, 0, 0, 400]
         mock_client = MagicMock()
         mock_cls.return_value = mock_client
         mock_client.connect.side_effect = Exception("refused")

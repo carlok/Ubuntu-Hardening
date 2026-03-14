@@ -31,7 +31,8 @@ RUN pip install --no-cache-dir -r requirements-dev.txt
 
 COPY tests/ tests/
 
-CMD ["pytest", "tests/", \
+ENTRYPOINT ["pytest"]
+CMD ["tests/", \
      "--cov=.", "--cov-report=term-missing", \
      "--cov-fail-under=60", \
      "-v", "--tb=short"]
