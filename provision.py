@@ -336,6 +336,13 @@ def main() -> None:
         server_ip = server.public_net.ipv4.ip
         logger.info(f"VM ready. IP: {server_ip}")
 
+        # ── Highlight key identifiers ─────────────────────────
+        _HL = "\033[1;97;44m"  # bold white on blue background
+        _RS = "\033[0m"
+        logger.info(f"{_HL}  Server : {server_name:<30}  ({server_ip})  {_RS}")
+        logger.info(f"{_HL}  User   : {new_user:<46}{_RS}")
+        logger.info(f"{_HL}  SSH    : port {ssh_port:<40}{_RS}")
+
         # ══════════════════════════════════════════════════════
         # PHASE 1 — Immediate lockdown (~30 seconds)
         # ══════════════════════════════════════════════════════
@@ -426,16 +433,18 @@ def main() -> None:
         ssh_client = None
 
         # ── Done ───────────────────────────────────────────────
-        logger.info("=" * 55)
-        logger.info("PROVISIONING COMPLETE")
-        logger.info("=" * 55)
-        logger.info(f"Server IP  : {server_ip}")
-        logger.info(f"SSH Port   : {ssh_port}")
-        logger.info(f"Username   : {new_user}")
-        logger.info(f"Private Key: {key_path}  (mounted at ./keys/id_rsa on your host)")
+        _OK = "\033[1;97;42m"  # bold white on green background
+        _CMD = "\033[1;97;45m" # bold white on magenta background
+        logger.info(f"{_OK}{'':55}{_RS}")
+        logger.info(f"{_OK}  PROVISIONING COMPLETE{'':<33}{_RS}")
+        logger.info(f"{_OK}{'':55}{_RS}")
+        logger.info(f"{_HL}  Server : {server_name:<30}  ({server_ip})  {_RS}")
+        logger.info(f"{_HL}  SSH    : port {ssh_port:<40}{_RS}")
+        logger.info(f"{_HL}  User   : {new_user:<46}{_RS}")
+        logger.info(f"{_HL}  Key    : ./keys/id_rsa{'':<32}{_RS}")
         logger.info("")
         logger.info(f"Connect with:")
-        logger.info(f"  ssh -i ./keys/id_rsa -o IdentitiesOnly=yes -p {ssh_port} {new_user}@{server_ip}")
+        logger.info(f"{_CMD}  ssh -i ./keys/id_rsa -o IdentitiesOnly=yes -p {ssh_port} {new_user}@{server_ip}  {_RS}")
 
     except Exception as exc:
         logger.error(f"Fatal error: {exc}")
