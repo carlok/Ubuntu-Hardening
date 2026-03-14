@@ -11,8 +11,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY provision.py destroy.py harden-phase1.sh harden-phase2.sh .
-RUN chmod +x harden-phase1.sh harden-phase2.sh
+COPY provision.py destroy.py harden-phase1.sh harden-phase2.sh verify.sh .
+RUN chmod +x harden-phase1.sh harden-phase2.sh verify.sh
 
 ENTRYPOINT ["python"]
 CMD ["provision.py"]

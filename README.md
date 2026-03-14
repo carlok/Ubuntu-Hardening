@@ -245,10 +245,11 @@ integration concerns and are not unit tested here.
 
 | File | Purpose |
 |---|---|
-| `provision.py` | Orchestrator — Phase 1 → firewall lockdown → Phase 2 |
+| `provision.py` | Orchestrator — Phase 1 → firewall lockdown → Phase 2 → verify |
 | `destroy.py` | Tear down a server and its Hetzner resources |
 | `harden-phase1.sh` | Phase 1 script (immediate lockdown, no apt) |
 | `harden-phase2.sh` | Phase 2 script (full CIS pipeline) |
+| `verify.sh` | Post-provisioning health check (SSH, UFW, sysctl, services) |
 | `Dockerfile` | Container image for the provisioner |
 | `run.sh` | Wrapper: `./run.sh` to provision, `./run.sh destroy` to tear down |
 | `.env.example` | Configuration template |

@@ -429,6 +429,15 @@ def main() -> None:
             "harden-phase2.sh",
             use_sudo=True,
         )
+        # ── Post-provisioning health check ────────────────────
+        smtp_flag = "smtp" if smtp_env_content else ""
+        execute_remote_script(
+            ssh_client,
+            "verify.sh",
+            args=f"{new_user} {ssh_port} {smtp_flag}",
+            use_sudo=True,
+        )
+
         ssh_client.close()
         ssh_client = None
 
