@@ -6,6 +6,7 @@
 #   ./run.sh                         # Provision a new VM
 #   ./run.sh destroy <name-or-ip>    # Destroy a VM and its resources
 #   ./run.sh destroy <name-or-ip> --yes  # Non-interactive destroy
+#   ./run.sh test                    # Run unit tests + coverage report
 # ─────────────────────────────────────────────────────────────
 
 set -euo pipefail
@@ -39,9 +40,15 @@ case "$MODE" in
             -v "$(pwd)/keys:/workspace" \
             cloud-vm-provisioner destroy.py "$TARGET" $EXTRA
         ;;
+    test)
+        echo "Building test image..."
+        podman build --target test -t cloud-vm-provisioner-test . --quiet
+        echo "Running unit tests + coverage..."
+        podman run --rm cloud-vm-provisioner-test
+        ;;
     *)
         echo "Unknown mode: $MODE"
-        echo "Usage: ./run.sh [provision|destroy <name-or-ip> [--yes]]"
+        echo "Usage: ./run.sh [provision|destroy <name-or-ip> [--yes]|test]"
         exit 1
         ;;
 esac

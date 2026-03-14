@@ -137,6 +137,33 @@ Floating IPs are listed as a warning but **not** auto-deleted.
 
 ---
 
+## Testing
+
+Unit tests and code coverage run entirely inside a dedicated container stage —
+nothing is installed on the host.
+
+```bash
+./run.sh test
+```
+
+This builds the `test` stage of the Dockerfile (extends the production image,
+adds `pytest` + `pytest-cov`), runs all tests, and prints a coverage report.
+The build fails if coverage drops below 60 %.
+
+```
+tests/test_provision.py   — generate_ssh_keypair, generate_random_password,
+                            _ColorFormatter, upload_string,
+                            execute_remote_script, wait_for_ssh,
+                            lockdown_firewall
+tests/test_destroy.py     — find_server, find_attached_firewalls,
+                            find_orphaned_prov_keys, find_floating_ips
+```
+
+Functions that require live Hetzner API access (`main()`, `destroy()`) are
+integration concerns and are not unit tested here.
+
+---
+
 ## Configuration reference
 
 | Variable | Default | Description |
