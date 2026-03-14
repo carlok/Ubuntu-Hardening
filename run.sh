@@ -7,6 +7,8 @@
 #   ./run.sh destroy <name-or-ip>    # Destroy a VM and its resources
 #   ./run.sh destroy <name-or-ip> --yes  # Non-interactive destroy
 #   ./run.sh test                    # Run unit tests + coverage report
+#
+# Logs are saved to ./logs/<mode>-<timestamp>.log
 # ─────────────────────────────────────────────────────────────
 
 set -euo pipefail
@@ -16,35 +18,42 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
-mkdir -p ./keys
+mkdir -p ./keys ./logs
 
 echo "Building provisioner image..."
 podman build -t cloud-vm-provisioner . --quiet
 
 MODE="${1:-provision}"
+TIMESTAMP=$(date '+%Y%m%d-%H%M%S')
+LOGFILE="./logs/${MODE}-${TIMESTAMP}.log"
 
 case "$MODE" in
     provision)
         echo "Starting VM provisioning..."
+        echo "Log: $LOGFILE"
         podman run -it --rm \
             -v "$(pwd)/.env:/app/.env:ro" \
             -v "$(pwd)/keys:/workspace" \
-            cloud-vm-provisioner provision.py
+            cloud-vm-provisioner provision.py 2>&1 | tee "$LOGFILE"
         ;;
     destroy)
         TARGET="${2:?Usage: ./run.sh destroy <server-name-or-ip> [--yes]}"
         EXTRA="${3:-}"
+        LOGFILE="./logs/destroy-${TARGET//[^a-zA-Z0-9._-]/_}-${TIMESTAMP}.log"
         echo "Destroying server: $TARGET"
+        echo "Log: $LOGFILE"
         podman run -it --rm \
             -v "$(pwd)/.env:/app/.env:ro" \
             -v "$(pwd)/keys:/workspace" \
-            cloud-vm-provisioner destroy.py "$TARGET" $EXTRA
+            cloud-vm-provisioner destroy.py "$TARGET" $EXTRA 2>&1 | tee "$LOGFILE"
         ;;
     test)
+        LOGFILE="./logs/test-${TIMESTAMP}.log"
         echo "Building test image..."
         podman build --target test -t cloud-vm-provisioner-test . --quiet
         echo "Running unit tests + coverage..."
-        podman run --rm cloud-vm-provisioner-test
+        echo "Log: $LOGFILE"
+        podman run --rm cloud-vm-provisioner-test 2>&1 | tee "$LOGFILE"
         ;;
     *)
         echo "Unknown mode: $MODE"
