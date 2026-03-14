@@ -20,6 +20,7 @@
 # =============================================================
 
 export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a          # auto-restart services, no interactive scanning
 
 LOG_DIR="/var/log/hardening"
 mkdir -p "$LOG_DIR/sections"

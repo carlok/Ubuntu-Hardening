@@ -171,10 +171,39 @@ def execute_remote_script(
     logger.info(f"Executing: {cmd}")
     _, stdout, stderr = ssh_client.exec_command(cmd)
 
-    for line in iter(stdout.readline, ""):
-        logger.info(f"  [remote] {line.rstrip()}")
+    # Non-blocking read with heartbeat — prints elapsed time when the
+    # remote script produces no output for 15+ seconds (e.g. apt upgrade).
+    channel = stdout.channel
+    start = time.time()
+    last_heartbeat = start
+    buf = ""
+    while not channel.closed:
+        if channel.recv_ready():
+            chunk = channel.recv(4096).decode(errors="replace")
+            if not chunk:
+                break
+            buf += chunk
+            while "\n" in buf:
+                line, buf = buf.split("\n", 1)
+                logger.info(f"  [remote] {line.rstrip()}")
+            last_heartbeat = time.time()
+        elif channel.exit_status_ready():
+            # Drain any remaining data
+            while channel.recv_ready():
+                buf += channel.recv(4096).decode(errors="replace")
+            break
+        else:
+            now = time.time()
+            if now - last_heartbeat >= 15:
+                elapsed = int(now - start)
+                mins, secs = divmod(elapsed, 60)
+                logger.info(f"  ... {mins}m{secs:02d}s elapsed — still running")
+                last_heartbeat = now
+            time.sleep(1)
+    if buf.strip():
+        logger.info(f"  [remote] {buf.rstrip()}")
 
-    exit_code = stdout.channel.recv_exit_status()
+    exit_code = channel.recv_exit_status()
     if exit_code not in (0, -1):   # -1 = channel closed (e.g. sshd restart at end of phase1)
         err = stderr.read().decode(errors="replace").strip()
         raise RuntimeError(f"Script exited {exit_code}: {err}")
@@ -406,7 +435,7 @@ def main() -> None:
         logger.info(f"Private Key: {key_path}  (mounted at ./keys/id_rsa on your host)")
         logger.info("")
         logger.info(f"Connect with:")
-        logger.info(f"  ssh -i ./keys/id_rsa -p {ssh_port} {new_user}@{server_ip}")
+        logger.info(f"  ssh -i ./keys/id_rsa -o IdentitiesOnly=yes -p {ssh_port} {new_user}@{server_ip}")
 
     except Exception as exc:
         logger.error(f"Fatal error: {exc}")

@@ -179,8 +179,12 @@ Username   : svc_a1b2c3d4
 Private Key: /workspace/id_rsa  (mounted at ./keys/id_rsa on your host)
 
 Connect with:
-  ssh -i ./keys/id_rsa -p 48123 svc_a1b2c3d4@1.2.3.4
+  ssh -i ./keys/id_rsa -o IdentitiesOnly=yes -p 48123 svc_a1b2c3d4@1.2.3.4
 ```
+
+> **Tip:** `-o IdentitiesOnly=yes` is important if your SSH agent has multiple
+> keys loaded — without it, the agent offers all keys first and `MaxAuthTries 3`
+> rejects you before the correct key is tried.
 
 ### Destroy a VM
 
