@@ -8,6 +8,41 @@ the full CIS pipeline runs.
 
 ---
 
+## Background
+
+This project is based on `Cloud-Ubuntu-Hardening-2026.sh` from the upstream
+repository, a comprehensive CIS Level 1/2 hardening script for Ubuntu 24.04
+covering kernel parameters, AppArmor, auditd, PAM policy, SSH hardening,
+filesystem restrictions, AIDE integrity checking, and more.
+
+We kept the upstream script's structure and section numbering as a reference
+point, but significantly reworked and extended it:
+
+- **Split into two phases.** The upstream ran everything in one pass, leaving
+  the VM exposed on port 22 with root access for the full duration (several
+  minutes). We separated the work into an immediate lockdown phase (~30 seconds,
+  no package installs) and a full CIS phase, so the attack surface is minimised
+  from the very first seconds of the VM's life.
+- **Added a Python orchestrator** (`provision.py`) that drives both phases via
+  the Hetzner Cloud API: creates the VM and firewall, runs Phase 1, closes
+  port 22 at the network level, reconnects as the new unprivileged user, then
+  runs Phase 2.
+- **SSH hardening split**: Phase 1 writes the complete `sshd_config` (custom
+  port, key-only auth, AllowUsers). Phase 2 adds a drop-in at
+  `sshd_config.d/50-cis-hardening.conf` for cipher and MAC hardening without
+  overwriting Phase 1's access settings.
+- **Replaced postfix with msmtp** for lightweight SMTP-relay-based alerting,
+  wired as the system MTA so auditd, AIDE, rkhunter, and logwatch can all send
+  email with no daemon running.
+- **Added tooling**: fail2ban, needrestart, rkhunter (with nightly cron),
+  logwatch, Podman rootless runtime.
+- **Added `destroy.py`**: a companion CLI tool to cleanly tear down a server
+  and all associated Hetzner resources (firewall, orphaned SSH keys).
+
+---
+
+---
+
 ## How It Works
 
 ### Phase 1 — Immediate lockdown (~30 seconds, no package installs)
@@ -129,7 +164,6 @@ Floating IPs are listed as a warning but **not** auto-deleted.
 | `destroy.py` | Tear down a server and its Hetzner resources |
 | `harden-phase1.sh` | Phase 1 script (immediate lockdown, no apt) |
 | `harden-phase2.sh` | Phase 2 script (full CIS pipeline) |
-| `Cloud-Ubuntu-Hardening-2026.sh` | Upstream hardening script (reference) |
 | `Dockerfile` | Container image for the provisioner |
 | `run.sh` | Wrapper: `./run.sh` to provision, `./run.sh destroy` to tear down |
 | `.env.example` | Configuration template |
