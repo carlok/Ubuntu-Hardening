@@ -1,54 +1,135 @@
-# 🚀 Hetzner VM Podman Provisioner
+# Hetzner VM Hardening Provisioner
 
-This orchestrated container automatically provisions a new Ubuntu 24.04 Virtual Machine on Hetzner Cloud, runs the CIS Level 1/Level 2 Cloud VM hardening script, and completely locks down the instance. 
+Fork of [AndyHS-506/Ubuntu-Hardening](https://github.com/AndyHS-506/Ubuntu-Hardening).
 
-It is designed to create a secure, production-ready, rootless Podman node out of the box.
-
-## ✨ Features
-- **Hetzner API Integration**: Automatically creates the Server and Cloud Firewall.
-- **Auto-Hardening**: Uploads and executes the `Cloud-Ubuntu-Hardening-2026.sh` script to secure the kernel, filesystem bindings (`tmpfs`), and logging (`auditd`/`journald`).
-- **Secure Randomization**: 
-  - Generates a random unprivileged user.
-  - Automatically installs Podman for rootless container execution.
-  - Generates an RSA key-pair (saves the private key securely to your host machine).
-  - Assigns a random high port (e.g. `45821`) to the SSH server.
-- **Automated Lockdown**: Using the Hetzner Firewall API, it physically drops Port `22` and only opens the new random SSH high-port to the internet.
+Automatically provisions a hardened Ubuntu 24.04 VM on Hetzner Cloud using a
+**two-phase approach**: the VM is locked down within seconds of creation, before
+the full CIS pipeline runs.
 
 ---
 
-## 🛠️ Usage
+## How It Works
 
-### 1. Configure the `.env` file
-Copy `.env.example` to `.env` and fill in your Hetzner API key.
+### Phase 1 — Immediate lockdown (~30 seconds, no package installs)
+
+Runs as root on port 22 immediately after the VM boots. No `apt` is involved —
+pure configuration of pre-installed Ubuntu packages.
+
+- Creates a random unprivileged user (`svc_<8hex>`) with key-only SSH access
+- Moves SSH to a random high port (10 000 – 60 000); disables root login and
+  password authentication entirely; restricts `AllowUsers` to the new account
+- Enables UFW with default-deny-incoming; opens only the new SSH port
+- TCP wrappers: `/etc/hosts.deny ALL:ALL`, allow only sshd
+- sysctl: SYN cookies, reverse-path filtering, IPv6 disabled, ASLR, dmesg
+  restrict, source-routing disabled
+- Randomises the hostname; disables ctrl-alt-del reboot; locks the root account
+
+**As soon as Phase 1 finishes, the Hetzner Cloud Firewall is updated: port 22
+is closed and only the new random port is open.**
+
+### Phase 2 — Full CIS hardening (several minutes)
+
+Reconnects as the new user on the new port and runs the full hardening pipeline
+via `sudo`.
+
+- `apt full-upgrade` (security + kernel patches), `autoremove`, `clean`
+- Removes 20+ unnecessary services (avahi, cups, NFS, Samba, SNMP, …)
+- AppArmor (complain mode), auditd with comprehensive ruleset, AIDE file
+  integrity (daily cron), rsyslog, journald (persistent), process accounting
+- Kernel module blacklisting (cramfs, usb-storage, dccp, sctp, …); secure
+  tmpfs mounts for `/tmp`, `/dev/shm`, `/var/tmp`
+- SSH drop-in at `/etc/ssh/sshd_config.d/50-cis-hardening.conf`: cipher/MAC
+  hardening, verbose logging — **does not overwrite Phase 1 settings**
+- PAM: faillock (4 attempts, 15 min lock), pwquality (14-char min),
+  SHA-512 hashing, password history (last 5), 30-min session timeout
+- fail2ban (SSH protection), needrestart (auto-restart services after upgrades)
+- rkhunter baseline + nightly scan (03:30 cron)
+- logwatch daily digest (via msmtp if SMTP is configured)
+- **msmtp** — lightweight SMTP client wired as system MTA (no postfix daemon);
+  lets auditd, AIDE, rkhunter, logwatch send email alerts
+- Podman rootless runtime for the provisioned user
+
+---
+
+## Usage
+
+### 1. Configure `.env`
+
 ```bash
 cp .env.example .env
-nano .env
-```
-*(You can optionally override options like the Region, Server Type, or Username in this file).*
-
-### 2. Copy the Hardening Script
-Ensure you copy the hardened bash script from the parent folder into this provisioner directory so Podman can bundle it:
-```bash
-cp ../Cloud-Ubuntu-Hardening-2026.sh .
+nano .env          # fill in HCLOUD_TOKEN at minimum
 ```
 
-### 3. Build & Run
-You can run this container manually, or use the provided `run.sh` script to build and run the Podman container (it handles mounting your local volume, which is required to save the generated private SSH key).
+Optional settings: region, server type, a fixed username, and SMTP credentials
+for email alerts (auditd, AIDE, rkhunter, logwatch all use the same MTA).
+
+### 2. Build and provision
 
 ```bash
 chmod +x run.sh
 ./run.sh
 ```
 
-### 4. Connection
-Once the orchestration finishes, the python script will output exactly how to connect to your new, fully locked-down host:
-```bash
-✅ PROVISIONING COMPLETE!
-Server IP:    xxx.xxx.xxx.xxx
-SSH Port:     48123
-Username:     podman_user_a1b2c3d4
-Private Key:  (Saved in your host volume as id_rsa)
+The script builds the container image and runs the provisioner. Your private key
+is saved to `./keys/id_rsa` on the host.
 
-# Connect via:
-ssh -i ./keys/id_rsa -p 48123 podman_user_a1b2c3d4@xxx.xxx.xxx.xxx
+### 3. Connect
+
 ```
+PROVISIONING COMPLETE
+Server IP  : 1.2.3.4
+SSH Port   : 48123
+Username   : svc_a1b2c3d4
+Private Key: /workspace/id_rsa  (mounted at ./keys/id_rsa on your host)
+
+Connect with:
+  ssh -i ./keys/id_rsa -p 48123 svc_a1b2c3d4@1.2.3.4
+```
+
+### Destroy a VM
+
+To tear down a server and all associated Hetzner resources:
+
+```bash
+./run.sh destroy hardened-node-a1b2c3          # interactive confirm
+./run.sh destroy hardened-node-a1b2c3 --yes    # non-interactive (CI)
+./run.sh destroy 1.2.3.4                       # find by IP instead
+```
+
+This deletes: the server (releasing its primary IPv4/IPv6), attached firewalls,
+and any orphaned `prov-key-*` SSH keys left from provisioning.
+Floating IPs are listed as a warning but **not** auto-deleted.
+
+---
+
+## Configuration reference
+
+| Variable | Default | Description |
+|---|---|---|
+| `HCLOUD_TOKEN` | — | **Required.** Hetzner Cloud API token |
+| `SERVER_NAME` | `hardened-node` | Name prefix — actual name is `<prefix>-<6hex>` |
+| `SERVER_TYPE` | `cx22` | Hetzner server type |
+| `LOCATION` | `fsn1` | Hetzner datacenter location |
+| `OS_IMAGE` | `ubuntu-24.04` | Base OS image |
+| `NEW_USER_NAME` | _(random)_ | Override the provisioned username |
+| `SMTP_HOST` | — | SMTP relay hostname (enables msmtp + email alerts) |
+| `SMTP_PORT` | `587` | SMTP port (STARTTLS) |
+| `SMTP_USER` | — | SMTP username |
+| `SMTP_PASS` | — | SMTP password |
+| `SMTP_FROM` | — | Sender address |
+| `ALERT_EMAIL` | — | Recipient for security digests |
+
+---
+
+## Files
+
+| File | Purpose |
+|---|---|
+| `provision.py` | Orchestrator — Phase 1 → firewall lockdown → Phase 2 |
+| `destroy.py` | Tear down a server and its Hetzner resources |
+| `harden-phase1.sh` | Phase 1 script (immediate lockdown, no apt) |
+| `harden-phase2.sh` | Phase 2 script (full CIS pipeline) |
+| `Cloud-Ubuntu-Hardening-2026.sh` | Upstream hardening script (reference) |
+| `Dockerfile` | Container image for the provisioner |
+| `run.sh` | Wrapper: `./run.sh` to provision, `./run.sh destroy` to tear down |
+| `.env.example` | Configuration template |
