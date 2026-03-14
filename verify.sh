@@ -157,6 +157,28 @@ if [[ -n "$USER_CHECK" ]]; then
 fi
 echo ""
 
+# ── Network ──────────────────────────────────────────────
+echo "--- Network ---"
+if [[ -n "$PORT_CHECK" ]]; then
+    # Only sshd on the expected port should be listening
+    UNEXPECTED=$(ss -tlnpH | grep -v ":${PORT_CHECK} " | grep -v '127\.\|::1\|\[::1\]' || true)
+    if [[ -z "$UNEXPECTED" ]]; then
+        pass "No unexpected public listening ports"
+    else
+        fail "Unexpected public listening ports:"
+        echo "$UNEXPECTED" | while read -r line; do echo "         $line"; done
+    fi
+fi
+echo ""
+
+# ── Automatic updates ────────────────────────────────────
+echo "--- Auto-updates ---"
+check "unattended-upgrades installed" \
+    "dpkg -l unattended-upgrades 2>/dev/null | grep -q '^ii'"
+check "unattended-upgrades enabled" \
+    "test -f /etc/apt/apt.conf.d/20auto-upgrades"
+echo ""
+
 # ── Misc ──────────────────────────────────────────────────
 echo "--- Misc ---"
 check "ctrl-alt-del masked" \
@@ -165,6 +187,12 @@ check "Login banner exists" \
     "test -s /etc/issue.net"
 check "TCP wrappers deny all" \
     "grep -q 'ALL: ALL' /etc/hosts.deny"
+echo ""
+
+# ── Disk usage (informational) ────────────────────────────
+echo "--- Disk ---"
+DISK_USE=$(df -h / | awk 'NR==2 {print $3 " used / " $2 " total (" $5 ")"}')
+echo "  [INFO]  Root filesystem: $DISK_USE"
 echo ""
 
 # ── Summary ───────────────────────────────────────────────

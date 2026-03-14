@@ -148,8 +148,14 @@ def execute_remote_script(
     args: str = "",
     use_sudo: bool = False,
     max_sftp_retries: int = 8,
-) -> None:
-    """Upload a local script via SFTP and execute it on the remote host."""
+    allow_nonzero: bool = False,
+) -> int:
+    """Upload a local script via SFTP and execute it on the remote host.
+
+    Returns the exit code.  Raises RuntimeError on non-zero exit unless
+    *allow_nonzero* is True (useful for scripts like verify.sh that
+    return the number of failed checks).
+    """
     logger.info(f"Uploading {os.path.basename(local_path)}...")
     sftp = None
     for attempt in range(1, max_sftp_retries + 1):
@@ -205,10 +211,11 @@ def execute_remote_script(
         logger.info(f"  [remote] {buf.rstrip()}")
 
     exit_code = channel.recv_exit_status()
-    if exit_code not in (0, -1):   # -1 = channel closed (e.g. sshd restart at end of phase1)
+    if exit_code not in (0, -1) and not allow_nonzero:
         err = stderr.read().decode(errors="replace").strip()
         raise RuntimeError(f"Script exited {exit_code}: {err}")
     logger.info(f"{os.path.basename(local_path)} finished (exit {exit_code}).")
+    return exit_code
 
 
 # ─────────────────────────────────────────────────────────────
@@ -297,6 +304,8 @@ def main() -> None:
     ssh_client   = None
     hcloud_key   = None
 
+    t_start = time.time()
+
     try:
         # ── Generate keypair ───────────────────────────────────
         priv_key, pub_key = generate_ssh_keypair()
@@ -350,6 +359,7 @@ def main() -> None:
         logger.info("=" * 55)
         logger.info("PHASE 1 — Immediate lockdown")
         logger.info("=" * 55)
+        t_phase1 = time.time()
 
         ssh_client = wait_for_ssh(server_ip, "root", key_filename=key_path)
 
@@ -397,6 +407,9 @@ def main() -> None:
         ssh_client.close()
         ssh_client = None
 
+        p1_secs = int(time.time() - t_phase1)
+        logger.info(f"Phase 1 completed in {p1_secs}s.")
+
         # ── Close port 22 at Hetzner level — VM is now locked down ──
         lockdown_firewall(firewall, ssh_port)
 
@@ -412,6 +425,7 @@ def main() -> None:
         logger.info("=" * 55)
         logger.info("PHASE 2 — Full CIS hardening (this takes several minutes)")
         logger.info("=" * 55)
+        t_phase2 = time.time()
 
         # Reconnect as the new user on the randomised port
         ssh_client = wait_for_ssh(
@@ -430,17 +444,31 @@ def main() -> None:
             "harden-phase2.sh",
             use_sudo=True,
         )
+        p2_secs = int(time.time() - t_phase2)
+        p2m, p2s = divmod(p2_secs, 60)
+        logger.info(f"Phase 2 completed in {p2m}m{p2s:02d}s.")
+
         # ── Post-provisioning health check ────────────────────
         smtp_flag = "smtp" if smtp_env_content else ""
-        execute_remote_script(
+        verify_failures = execute_remote_script(
             ssh_client,
             "verify.sh",
             args=f"{new_user} {ssh_port} {smtp_flag}",
             use_sudo=True,
+            allow_nonzero=True,
         )
+        if verify_failures > 0:
+            logger.warning(f"Health check reported {verify_failures} failed check(s).")
+        else:
+            logger.info("All health checks passed.")
 
         ssh_client.close()
         ssh_client = None
+
+        # ── Timing summary ────────────────────────────────────
+        total_elapsed = int(time.time() - t_start)
+        m, s = divmod(total_elapsed, 60)
+        logger.info(f"Total provisioning time: {m}m{s:02d}s")
 
         # ── Done ───────────────────────────────────────────────
         _OK = "\033[1;97;42m"  # bold white on green background
