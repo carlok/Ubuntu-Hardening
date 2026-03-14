@@ -65,7 +65,7 @@ start_section "1.2 — Package updates"
 # needrestart properly later in Section 8.
 run_cmd "rm -f /etc/dpkg/dpkg.cfg.d/needrestart" "Remove needrestart dpkg hook (prevents hang)"
 run_cmd "apt-get update -qq" "Update package index"
-run_cmd "apt-get full-upgrade -y" "Apply all security and kernel updates (full-upgrade)"
+run_cmd "apt-get -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef full-upgrade -y" "Apply all security and kernel updates (full-upgrade)"
 run_cmd "apt-get autoremove -y" "Remove obsolete packages"
 run_cmd "apt-get clean" "Clean package cache"
 run_cmd "chown root:root /boot/grub/grub.cfg 2>/dev/null || true" "Set grub.cfg ownership"
