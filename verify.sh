@@ -128,7 +128,7 @@ check "AIDE database exists" \
 check "rkhunter baseline exists" \
     "test -f /var/lib/rkhunter/db/rkhunter.dat"
 check "rkhunter cron job" \
-    "test -f /etc/cron.d/rkhunter-nightly || crontab -l 2>/dev/null | grep -q rkhunter"
+    "test -f /etc/cron.d/rkhunter || crontab -l 2>/dev/null | grep -q rkhunter"
 echo ""
 
 # ── Email alerts (optional) ──────────────────────────────
