@@ -162,7 +162,8 @@ def execute_remote_script(
     if sftp is None:
         raise RuntimeError("Could not open SFTP channel.")
 
-    remote_path = f"/tmp/{os.path.basename(local_path)}"
+    home_dir = sftp.normalize(".")
+    remote_path = f"{home_dir}/{os.path.basename(local_path)}"
     sftp.put(local_path, remote_path)
     sftp.close()
 
