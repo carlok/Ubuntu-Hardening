@@ -26,7 +26,7 @@ case "$MODE" in
     provision)
         echo "Starting VM provisioning..."
         podman run -it --rm \
-            --env-file .env \
+            -v "$(pwd)/.env:/app/.env:ro" \
             -v "$(pwd)/keys:/workspace" \
             cloud-vm-provisioner provision.py
         ;;
@@ -35,7 +35,7 @@ case "$MODE" in
         EXTRA="${3:-}"
         echo "Destroying server: $TARGET"
         podman run -it --rm \
-            --env-file .env \
+            -v "$(pwd)/.env:/app/.env:ro" \
             -v "$(pwd)/keys:/workspace" \
             cloud-vm-provisioner destroy.py "$TARGET" $EXTRA
         ;;
