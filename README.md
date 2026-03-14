@@ -80,8 +80,13 @@ sequenceDiagram
     Note right of VM: apt full-upgrade<br/>Remove unnecessary services<br/>AppArmor, auditd, AIDE<br/>SSH cipher/MAC hardening<br/>PAM lockout + password policy<br/>fail2ban, rkhunter, logwatch<br/>msmtp (email alerts)<br/>Podman rootless
     VM-->>C: Script exits 0
 
+    Note over C,VM: Post-provisioning verification
+    C->>VM: Upload & run verify.sh
+    Note right of VM: Check SSH, UFW, sysctl,<br/>auditd, fail2ban, AppArmor,<br/>AIDE, rkhunter, msmtp, Podman
+    VM-->>C: Exit code = failed checks
+
     C-->>H: Done — print connection details
-    Note over H: ssh -i ./keys/id_rsa<br/>-p <random_port><br/>user@IP
+    Note over H: ssh -i ./keys/id_rsa<br/>-o IdentitiesOnly=yes<br/>-p <random_port><br/>user@IP
 ```
 
 ### Key flow
@@ -160,7 +165,8 @@ chmod +x run.sh
 ```
 
 The script builds the container image and runs the provisioner. Your private key
-is saved to `./keys/id_rsa` on the host.
+is saved to `./keys/id_rsa` on the host. A full log is saved to
+`./logs/provision-<timestamp>.log`.
 
 ### 3. Connect
 
@@ -252,4 +258,5 @@ integration concerns and are not unit tested here.
 | `verify.sh` | Post-provisioning health check (SSH, UFW, sysctl, services) |
 | `Dockerfile` | Container image for the provisioner |
 | `run.sh` | Wrapper: `./run.sh` to provision, `./run.sh destroy` to tear down |
+| `logs/` | Host-side logs — `<mode>-<timestamp>.log` for each run |
 | `.env.example` | Configuration template |
