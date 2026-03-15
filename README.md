@@ -102,13 +102,13 @@ sequenceDiagram
     Note over C,VM: Phase 2 — Full CIS Hardening (several minutes)
     C->>VM: SSH user@IP:random_port (key auth)
     C->>VM: Upload & run harden-phase2.sh (sudo)
-    Note right of VM: apt full-upgrade<br/>Remove unnecessary services<br/>AppArmor, auditd, AIDE<br/>SSH cipher/MAC hardening<br/>PAM lockout + password policy<br/>fail2ban, rkhunter, logwatch<br/>msmtp (email alerts)<br/>Podman rootless
+    Note right of VM: apt full-upgrade<br/>Remove unnecessary services<br/>AppArmor, auditd, AIDE<br/>SSH cipher/MAC hardening<br/>PAM lockout + password policy<br/>unattended-upgrades<br/>fail2ban, needrestart<br/>rkhunter, logwatch<br/>msmtp (email alerts)<br/>Podman rootless
     VM-->>C: Script exits 0
 
     Note over C,VM: Post-provisioning verification
     C->>VM: Upload & run verify.sh
-    Note right of VM: Check SSH, UFW, sysctl,<br/>auditd, fail2ban, AppArmor,<br/>AIDE, rkhunter, msmtp, Podman
-    VM-->>C: Exit code = failed checks
+    Note right of VM: 41 automated checks:<br/>SSH, UFW, sysctl, services,<br/>AIDE, rkhunter, msmtp,<br/>Podman, network ports, disk
+    VM-->>C: Exit code = number of failed checks
 
     C-->>H: Done — print connection details
     Note over H: ssh -i ./keys/id_rsa<br/>-o IdentitiesOnly=yes<br/>-p <random_port><br/>user@IP
@@ -341,7 +341,7 @@ integration concerns and are not unit tested here.
 | `destroy.py` | Tear down a server and its Hetzner resources |
 | `harden-phase1.sh` | Phase 1 script (immediate lockdown, no apt) |
 | `harden-phase2.sh` | Phase 2 script (full CIS pipeline) |
-| `verify.sh` | Post-provisioning health check (SSH, UFW, sysctl, services) |
+| `verify.sh` | Post-provisioning health check — 41 automated checks (SSH, UFW, sysctl, services, AIDE, rkhunter, msmtp, Podman, network ports, disk) |
 | `Dockerfile` | Container image for the provisioner |
 | `run.sh` | Wrapper: `./run.sh` to provision, `./run.sh destroy` to tear down |
 | `logs/` | Host-side logs — `<mode>-<timestamp>.log` for each run |
