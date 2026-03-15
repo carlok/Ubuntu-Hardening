@@ -2,9 +2,23 @@
 
 Fork of [AndyHS-506/Ubuntu-Hardening](https://github.com/AndyHS-506/Ubuntu-Hardening).
 
-Automatically provisions a hardened Ubuntu 24.04 VM on Hetzner Cloud using a
-**two-phase approach**: the VM is locked down within seconds of creation, before
-the full CIS pipeline runs.
+## Why this exists
+
+A freshly created cloud VM is briefly exposed: root SSH on port 22, default
+config, while the hardening script runs its course — several minutes of
+package installs and service configuration. That window is small, but it
+exists, and automated scanners find new IPs fast.
+
+The goal here was to close that window. Not by skipping steps, but by
+separating the work: lock the VM down first (no apt, ~30 seconds), then
+do the full CIS pipeline behind the new firewall rules. An orchestrator
+drives both phases through the Hetzner Cloud API, so the whole thing —
+VM creation, hardening, verification — runs as a single command with no
+manual steps.
+
+The result is a CIS Level 1/2 hardened Ubuntu 24.04 VM, fully automated,
+in under 15 minutes. Nothing is installed on the host; everything runs
+inside a container.
 
 ---
 
