@@ -21,7 +21,7 @@ fi
 mkdir -p ./keys ./logs
 
 echo "Building provisioner image..."
-podman build -t cloud-vm-provisioner . --quiet
+podman build --target prod -t cloud-vm-provisioner . --quiet
 
 MODE="${1:-provision}"
 TIMESTAMP=$(date '+%Y%m%d-%H%M%S')
