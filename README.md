@@ -9,15 +9,19 @@ config, while the hardening script runs its course — several minutes of
 package installs and service configuration. That window is small, but it
 exists, and automated scanners find new IPs fast.
 
-The approach here is to separate the work into two phases. Phase 1 has no
-`apt` installs — it only configures what is already present on a fresh Ubuntu
-24.04 image. It runs in about 30 seconds. Critically, **UFW is one of the
-first things Phase 1 enables**: default-deny-incoming, only the new random
-SSH port open. So the OS-level firewall closes the gap within seconds of the
-first connection, well before the 30 seconds are up. The Hetzner Cloud
-Firewall is then updated at the end of Phase 1 — port 22 closed, random port
-opened — adding a second layer. Phase 2 (the full CIS pipeline) runs entirely
-behind both firewalls, as an unprivileged user on a non-standard port.
+The approach is to separate the work into two phases:
+
+- **Phase 1 (~30s, no `apt`)** — configures only what is already present on
+  a fresh Ubuntu 24.04 image:
+  - UFW is enabled early: default-deny-incoming, only the new random SSH port
+    open — OS-level firewall closes the gap within seconds of first connection
+  - New unprivileged user, key-only SSH, root locked, random high port
+  - sysctl hardening, TCP wrappers, hostname randomised
+  - At exit: Hetzner Cloud Firewall updated via API — port 22 closed, random
+    port opened — a second layer on top of UFW
+- **Phase 2 (full CIS pipeline)** — runs entirely behind both firewalls, as
+  an unprivileged user on the new port: package updates, AppArmor, auditd,
+  AIDE, PAM hardening, fail2ban, rkhunter, msmtp, Podman
 
 An orchestrator drives both phases through the Hetzner Cloud API, so the
 whole thing — VM creation, hardening, verification — runs as a single command
