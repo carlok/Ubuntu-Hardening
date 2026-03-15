@@ -10,7 +10,7 @@ the full CIS pipeline runs.
 
 ## Background
 
-This project is based on `Cloud-Ubuntu-Hardening-2026.sh` from the upstream
+This project is based on `Hardening-Ubuntu-2024.sh` from the upstream
 repository, a comprehensive CIS Level 1/2 hardening script for Ubuntu 24.04
 covering kernel parameters, AppArmor, auditd, PAM policy, SSH hardening,
 filesystem restrictions, AIDE integrity checking, and more.
@@ -142,6 +142,67 @@ via `sudo`.
 - **msmtp** — lightweight SMTP client wired as system MTA (no postfix daemon);
   lets auditd, AIDE, rkhunter, logwatch send email alerts
 - Podman rootless runtime for the provisioned user
+
+---
+
+## CIS Benchmark Coverage
+
+Both phases combined implement the following controls from the
+[CIS Ubuntu Linux 24.04 LTS Benchmark](https://www.cisecurity.org/benchmark/ubuntu_linux):
+
+| # | CIS Section | Level | Phase | Status |
+|---|---|---|---|---|
+| 1.1 | Filesystem module blacklisting (cramfs, freevxfs, hfs, usb-storage, …) | L1 | 2 | Implemented |
+| 1.2 | Package updates (`full-upgrade`, autoremove, GRUB permissions) | L1 | 2 | Implemented |
+| 1.3 | AppArmor (complain mode), ASLR, ptrace scope | L1 | 2 | Implemented |
+| 1.4 | Core dump hardening (limits.conf, suid_dumpable) | L1 | 1+2 | Implemented |
+| 1.5 | Remove prelink/apport; unattended-upgrades (security-only) | L1 | 2 | Implemented |
+| 1.6 | Login banner / MOTD hardening | L1 | 1+2 | Implemented |
+| 1.7 | Remove GUI (GDM3) | L1 | 2 | Implemented |
+| 1.8 | Secure tmpfs mounts (`/tmp`, `/dev/shm`, `/var/tmp` — noexec) | L1 | 2 | Implemented |
+| 2.1 | Remove unnecessary services (avahi, cups, NFS, Samba, SNMP, …) | L1 | 2 | Implemented |
+| 2.4 | NTP via systemd-timesyncd (chrony removed) | L1 | 2 | Implemented |
+| 2.5 | Cron permissions (root only) | L1 | 2 | Implemented |
+| 3.1 | Disable IPv6, remove Bluetooth | L1 | 1+2 | Implemented |
+| 3.2 | Disable unused network protocols (DCCP, TIPC, RDS, SCTP) | L2 | 2 | Implemented |
+| 3.3 | Network sysctl hardening (rp_filter, SYN cookies, redirects, source routing) | L1 | 1+2 | Implemented |
+| 4.1 | Host firewall — UFW default-deny, SSH-only | L1 | 1+2 | Implemented |
+| 5.1 | SSH hardening — key-only, no root, random port, cipher/MAC hardening | L1 | 1+2 | Implemented |
+| 5.2 | sudo hardening (logging, use_pty, env_reset) | L1 | 2 | Implemented |
+| 5.4 | Password policy (SHA-512, 180-day max, 14-char min, faillock, pwhistory) | L1 | 2 | Implemented |
+| 6.1 | auditd with comprehensive ruleset (time, user/group, priv esc, modules, …) | L2 | 2 | Implemented |
+| 6.2 | rsyslog (auth logging, emergency broadcast) | L1 | 2 | Implemented |
+| 6.3 | journald (persistent storage), log rotation | L1 | 2 | Implemented |
+| 6.4 | Process accounting (acct) | L2 | 2 | Implemented |
+| 6.5 | AIDE file integrity monitoring (daily cron) | L1 | 2 | Implemented |
+| 7.1 | Critical file permissions (`/etc/passwd`, `/etc/shadow`, …) | L1 | 2 | Implemented |
+| 7.2 | Log file permissions (640/750) | L1 | 2 | Implemented |
+
+**Beyond CIS** — additional hardening not in the benchmark:
+
+| # | Control | Phase |
+|---|---|---|
+| 8.1 | fail2ban (SSH brute-force protection) | 2 |
+| 8.2 | msmtp (lightweight MTA for security alerts) | 2 |
+| 8.3 | logwatch (daily security digest) | 2 |
+| 8.4 | needrestart (auto-restart services after upgrades) | 2 |
+| 8.5 | rkhunter (rootkit detection, nightly scan) | 2 |
+| 8.6 | Podman (rootless container runtime) | 2 |
+| — | Hetzner Cloud Firewall (network-level port control) | 1 |
+| — | TCP wrappers (`hosts.deny ALL:ALL`) | 1 |
+| — | Random hostname (obscures server purpose) | 1 |
+| — | ctrl-alt-del reboot disabled | 1 |
+| — | Root account locked | 1 |
+| — | `ssh.socket` disabled (prevents port override) | 1 |
+
+**Not implemented** (not applicable to Hetzner Cloud VMs):
+
+| Control | Reason |
+|---|---|
+| GRUB password | No physical/console access — cloud VMs boot unattended |
+| Separate partitions (`/var`, `/var/log`, `/home`) | Single-disk cloud instances; not practical without custom images |
+| Wireless/WLAN hardening | No wireless interface on cloud VMs |
+| SELinux | Ubuntu uses AppArmor as its default MAC framework |
 
 ---
 

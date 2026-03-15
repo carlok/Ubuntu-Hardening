@@ -2,7 +2,7 @@
 # =============================================================
 # Phase 2: Full CIS-Level Hardening
 #
-# Derived from Cloud-Ubuntu-Hardening-2026.sh (upstream fork).
+# Derived from Hardening-Ubuntu-2024.sh (upstream fork).
 # Runs after Phase 1 as the unprivileged user via sudo.
 #
 # Key differences from upstream:
