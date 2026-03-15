@@ -152,31 +152,31 @@ Both phases combined implement the following controls from the
 
 | # | CIS Section | Level | Phase | Status |
 |---|---|---|---|---|
-| 1.1 | Filesystem module blacklisting (cramfs, freevxfs, hfs, usb-storage, …) | L1 | 2 | Implemented |
-| 1.2 | Package updates (`full-upgrade`, autoremove, GRUB permissions) | L1 | 2 | Implemented |
-| 1.3 | AppArmor (complain mode), ASLR, ptrace scope | L1 | 2 | Implemented |
-| 1.4 | Core dump hardening (limits.conf, suid_dumpable) | L1 | 1+2 | Implemented |
-| 1.5 | Remove prelink/apport; unattended-upgrades (security-only) | L1 | 2 | Implemented |
-| 1.6 | Login banner / MOTD hardening | L1 | 1+2 | Implemented |
-| 1.7 | Remove GUI (GDM3) | L1 | 2 | Implemented |
-| 1.8 | Secure tmpfs mounts (`/tmp`, `/dev/shm`, `/var/tmp` — noexec) | L1 | 2 | Implemented |
-| 2.1 | Remove unnecessary services (avahi, cups, NFS, Samba, SNMP, …) | L1 | 2 | Implemented |
-| 2.4 | NTP via systemd-timesyncd (chrony removed) | L1 | 2 | Implemented |
-| 2.5 | Cron permissions (root only) | L1 | 2 | Implemented |
-| 3.1 | Disable IPv6, remove Bluetooth | L1 | 1+2 | Implemented |
-| 3.2 | Disable unused network protocols (DCCP, TIPC, RDS, SCTP) | L2 | 2 | Implemented |
-| 3.3 | Network sysctl hardening (rp_filter, SYN cookies, redirects, source routing) | L1 | 1+2 | Implemented |
-| 4.1 | Host firewall — UFW default-deny, SSH-only | L1 | 1+2 | Implemented |
-| 5.1 | SSH hardening — key-only, no root, random port, cipher/MAC hardening | L1 | 1+2 | Implemented |
-| 5.2 | sudo hardening (logging, use_pty, env_reset) | L1 | 2 | Implemented |
-| 5.4 | Password policy (SHA-512, 180-day max, 14-char min, faillock, pwhistory) | L1 | 2 | Implemented |
-| 6.1 | auditd with comprehensive ruleset (time, user/group, priv esc, modules, …) | L2 | 2 | Implemented |
-| 6.2 | rsyslog (auth logging, emergency broadcast) | L1 | 2 | Implemented |
-| 6.3 | journald (persistent storage), log rotation | L1 | 2 | Implemented |
-| 6.4 | Process accounting (acct) | L2 | 2 | Implemented |
-| 6.5 | AIDE file integrity monitoring (daily cron) | L1 | 2 | Implemented |
-| 7.1 | Critical file permissions (`/etc/passwd`, `/etc/shadow`, …) | L1 | 2 | Implemented |
-| 7.2 | Log file permissions (640/750) | L1 | 2 | Implemented |
+| 1.1 | Filesystem module blacklisting (cramfs, freevxfs, hfs, usb-storage, …) | L1 | 2 | ✅ Implemented |
+| 1.2 | Package updates (`full-upgrade`, autoremove, GRUB permissions) | L1 | 2 | ✅ Implemented |
+| 1.3 | AppArmor (complain mode), ASLR, ptrace scope | L1 | 2 | ✅ Implemented |
+| 1.4 | Core dump hardening (limits.conf, suid_dumpable) | L1 | 1+2 | ✅ Implemented |
+| 1.5 | Remove prelink/apport; unattended-upgrades (security-only) | L1 | 2 | ✅ Implemented |
+| 1.6 | Login banner / MOTD hardening | L1 | 1+2 | ✅ Implemented |
+| 1.7 | Remove GUI (GDM3) | L1 | 2 | ✅ Implemented |
+| 1.8 | Secure tmpfs mounts (`/tmp`, `/dev/shm`, `/var/tmp` — noexec) | L1 | 2 | ✅ Implemented |
+| 2.1 | Remove unnecessary services (avahi, cups, NFS, Samba, SNMP, …) | L1 | 2 | ✅ Implemented |
+| 2.4 | NTP via systemd-timesyncd (chrony removed) | L1 | 2 | ✅ Implemented |
+| 2.5 | Cron permissions (root only) | L1 | 2 | ✅ Implemented |
+| 3.1 | Disable IPv6, remove Bluetooth | L1 | 1+2 | ✅ Implemented |
+| 3.2 | Disable unused network protocols (DCCP, TIPC, RDS, SCTP) | L2 | 2 | ✅ Implemented |
+| 3.3 | Network sysctl hardening (rp_filter, SYN cookies, redirects, source routing) | L1 | 1+2 | ✅ Implemented |
+| 4.1 | Host firewall — UFW default-deny, SSH-only | L1 | 1+2 | ✅ Implemented |
+| 5.1 | SSH hardening — key-only, no root, random port, cipher/MAC hardening | L1 | 1+2 | ✅ Implemented |
+| 5.2 | sudo hardening (logging, use_pty, env_reset) | L1 | 2 | ✅ Implemented |
+| 5.4 | Password policy (SHA-512, 180-day max, 14-char min, faillock, pwhistory) | L1 | 2 | ✅ Implemented |
+| 6.1 | auditd with comprehensive ruleset (time, user/group, priv esc, modules, …) | L2 | 2 | ✅ Implemented |
+| 6.2 | rsyslog (auth logging, emergency broadcast) | L1 | 2 | ✅ Implemented |
+| 6.3 | journald (persistent storage), log rotation | L1 | 2 | ✅ Implemented |
+| 6.4 | Process accounting (acct) | L2 | 2 | ✅ Implemented |
+| 6.5 | AIDE file integrity monitoring (daily cron) | L1 | 2 | ✅ Implemented |
+| 7.1 | Critical file permissions (`/etc/passwd`, `/etc/shadow`, …) | L1 | 2 | ✅ Implemented |
+| 7.2 | Log file permissions (640/750) | L1 | 2 | ✅ Implemented |
 
 **Beyond CIS** — additional hardening not in the benchmark:
 
