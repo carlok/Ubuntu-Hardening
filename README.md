@@ -9,16 +9,23 @@ config, while the hardening script runs its course — several minutes of
 package installs and service configuration. That window is small, but it
 exists, and automated scanners find new IPs fast.
 
-The goal here was to close that window. Not by skipping steps, but by
-separating the work: lock the VM down first (no apt, ~30 seconds), then
-do the full CIS pipeline behind the new firewall rules. An orchestrator
-drives both phases through the Hetzner Cloud API, so the whole thing —
-VM creation, hardening, verification — runs as a single command with no
-manual steps.
+The approach here is to separate the work into two phases. Phase 1 has no
+`apt` installs — it only configures what is already present on a fresh Ubuntu
+24.04 image. It runs in about 30 seconds. Critically, **UFW is one of the
+first things Phase 1 enables**: default-deny-incoming, only the new random
+SSH port open. So the OS-level firewall closes the gap within seconds of the
+first connection, well before the 30 seconds are up. The Hetzner Cloud
+Firewall is then updated at the end of Phase 1 — port 22 closed, random port
+opened — adding a second layer. Phase 2 (the full CIS pipeline) runs entirely
+behind both firewalls, as an unprivileged user on a non-standard port.
+
+An orchestrator drives both phases through the Hetzner Cloud API, so the
+whole thing — VM creation, hardening, verification — runs as a single command
+with no manual steps. Nothing is installed on the host; everything runs inside
+a container.
 
 The result is a CIS Level 1/2 hardened Ubuntu 24.04 VM, fully automated,
-in under 15 minutes. Nothing is installed on the host; everything runs
-inside a container.
+in under 15 minutes.
 
 ---
 
