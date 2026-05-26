@@ -1,5 +1,5 @@
 # ─── Stage: production ───────────────────────────────────────
-FROM python:3.11-slim AS prod
+FROM python:3.12-slim AS prod
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
