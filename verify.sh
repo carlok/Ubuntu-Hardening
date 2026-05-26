@@ -28,7 +28,8 @@ warn() { echo "  [WARN]  $*"; ((WARN++)); }
 check() {
     local desc="$1"
     shift
-    if eval "$@" >/dev/null 2>&1; then
+    local cmd="$*"
+    if bash -c "$cmd" >/dev/null 2>&1; then
         pass "$desc"
     else
         fail "$desc"

@@ -254,6 +254,13 @@ The script builds the container image and runs the provisioner. Your private key
 is saved to `./keys/id_rsa` on the host. A full log is saved to
 `./logs/provision-<timestamp>.log`.
 
+Before creating a VM, you can validate the local configuration without creating
+any Hetzner resources:
+
+```bash
+./run.sh preflight
+```
+
 ### 3. Connect
 
 ```
@@ -297,8 +304,9 @@ nothing is installed on the host.
 ```
 
 This builds the `test` stage of the Dockerfile (extends the production image,
-adds `pytest` + `pytest-cov`), runs all tests, and prints a coverage report.
-The build fails if coverage drops below 60 %.
+adds `shellcheck`, `pytest`, and `pytest-cov`), checks shell scripts, runs all
+tests, and prints a coverage report. The build fails if coverage drops below
+60 %.
 
 ```
 tests/test_provision.py   — generate_ssh_keypair, generate_random_password,

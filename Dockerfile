@@ -11,8 +11,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY provision.py destroy.py harden-phase1.sh harden-phase2.sh verify.sh .
-RUN chmod +x harden-phase1.sh harden-phase2.sh verify.sh
+COPY provision.py destroy.py preflight.py run.sh harden-phase1.sh harden-phase2.sh verify.sh .
+RUN chmod +x run.sh harden-phase1.sh harden-phase2.sh verify.sh
 
 ENTRYPOINT ["python"]
 CMD ["provision.py"]
@@ -26,13 +26,12 @@ CMD ["provision.py"]
 # Run:    podman run --rm cloud-vm-provisioner-test
 FROM prod AS test
 
+RUN apt-get update && apt-get install -y shellcheck && rm -rf /var/lib/apt/lists/*
+
 COPY requirements-dev.txt .
 RUN pip install --no-cache-dir -r requirements-dev.txt
 
 COPY tests/ tests/
 
-ENTRYPOINT ["pytest"]
-CMD ["tests/", \
-     "--cov=.", "--cov-report=term-missing", \
-     "--cov-fail-under=60", \
-     "-v", "--tb=short"]
+ENTRYPOINT ["/bin/bash", "-c"]
+CMD ["shellcheck --severity=warning run.sh harden-phase1.sh harden-phase2.sh verify.sh && pytest tests/ --cov=. --cov-report=term-missing --cov-fail-under=60 -v --tb=short"]
