@@ -26,6 +26,7 @@ LOG_DIR="/var/log/hardening"
 mkdir -p "$LOG_DIR/sections"
 
 CURRENT_SECTION=""
+HARDEN_FAILS=0
 
 start_section() {
     CURRENT_SECTION="$1"
@@ -35,7 +36,10 @@ start_section() {
 }
 
 log_ok()  { echo "  [✓] $1" | tee -a "$LOG_DIR/sections/$CURRENT_SECTION/ok.log"; }
-log_err() { echo "  [✗] $1" | tee -a "$LOG_DIR/sections/$CURRENT_SECTION/err.log"; }
+log_err() {
+    echo "  [✗] $1" | tee -a "$LOG_DIR/sections/$CURRENT_SECTION/err.log"
+    ((HARDEN_FAILS++))
+}
 
 run_cmd() {
     local cmd="$1"
@@ -134,6 +138,7 @@ run_cmd "dpkg -l postfix &>/dev/null && apt-get purge -y postfix || true" "Purge
 
 start_section "2.4 — NTP (timesyncd)"
 run_cmd "dpkg -l chrony &>/dev/null && apt-get purge -y chrony || true" "Remove chrony"
+run_cmd "apt-get install -y systemd-timesyncd" "Install systemd-timesyncd"
 cat >> /etc/systemd/timesyncd.conf << 'EOF'
 
 [Time]
@@ -224,12 +229,20 @@ run_cmd "sshd -t" "Validate sshd config (drop-in)"
 run_cmd "systemctl reload ssh" "Reload SSH (no connection drop)"
 
 start_section "5.2 — sudo hardening"
-cat > /etc/sudoers.d/01_cis_base << 'EOF'
+if sudo -V 2>/dev/null | head -1 | grep -qi 'sudo-rs'; then
+    cat > /etc/sudoers.d/01_cis_base << 'EOF'
+Defaults use_pty
+Defaults env_reset, timestamp_timeout=15
+EOF
+    log_ok "sudo-rs detected — using supported sudoers hardening options."
+else
+    cat > /etc/sudoers.d/01_cis_base << 'EOF'
 Defaults logfile=/var/log/sudo.log
 Defaults log_input,log_output
 Defaults use_pty
 Defaults env_reset, timestamp_timeout=15
 EOF
+fi
 run_cmd "chmod 440 /etc/sudoers.d/01_cis_base" "Set sudoers drop-in permissions"
 run_cmd "visudo -c -f /etc/sudoers.d/01_cis_base" "Validate sudoers drop-in"
 
@@ -523,3 +536,7 @@ echo "Error summary:"
 grep -r "\[✗\]" "$LOG_DIR/sections/" 2>/dev/null | tee "$LOG_DIR/error_summary.log" || echo "  (none)"
 echo ""
 echo "Full logs: $LOG_DIR"
+if [[ "$HARDEN_FAILS" -gt 0 ]]; then
+    echo "Phase 2 completed with $HARDEN_FAILS failed hardening command(s)."
+    exit 1
+fi

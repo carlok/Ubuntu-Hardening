@@ -120,6 +120,8 @@ check "rsyslog running" \
     "systemctl is-active --quiet rsyslog"
 check "process accounting active" \
     "systemctl is-active --quiet acct"
+check "time synchronization active" \
+    "systemctl is-active --quiet systemd-timesyncd || systemctl is-active --quiet chrony"
 echo ""
 
 # ── File integrity & rootkit detection ────────────────────
@@ -184,6 +186,8 @@ echo ""
 echo "--- Misc ---"
 check "ctrl-alt-del masked" \
     "systemctl is-masked ctrl-alt-del.target 2>/dev/null | grep -q masked || test -L /etc/systemd/system/ctrl-alt-del.target"
+check "sudoers configuration valid" \
+    "visudo -c"
 check "Login banner exists" \
     "test -s /etc/issue.net"
 check "TCP wrappers deny all" \
