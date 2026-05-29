@@ -1,6 +1,7 @@
 # Hetzner VM Hardening Provisioner
 
-Fork of [AndyHS-506/Ubuntu-Hardening](https://github.com/AndyHS-506/Ubuntu-Hardening).
+Independent Hetzner Cloud Ubuntu hardening provisioner, currently smoke-tested
+on Ubuntu 26.04.
 
 ## Why this exists
 
@@ -12,7 +13,7 @@ exists, and automated scanners find new IPs fast.
 The approach is to separate the work into two phases:
 
 - **Phase 1 (~30s, no `apt`)** — configures only what is already present on
-  a fresh Ubuntu 24.04 image:
+  a fresh Ubuntu cloud image:
   - UFW is enabled early: default-deny-incoming, only the new random SSH port
     open — OS-level firewall closes the gap within seconds of first connection
   - New unprivileged user, key-only SSH, root locked, random high port
@@ -28,25 +29,26 @@ whole thing — VM creation, hardening, verification — runs as a single comman
 with no manual steps. Nothing is installed on the host; everything runs inside
 a container.
 
-The result is a CIS Level 1/2 hardened Ubuntu 24.04 VM, fully automated,
+The result is a CIS Level 1/2 hardened Ubuntu 26.04 VM, fully automated,
 in under 15 minutes.
 
 ---
 
 ## Background
 
-This project is based on `Hardening-Ubuntu-2024.sh` from the upstream
-repository, a comprehensive CIS Level 1/2 hardening script for Ubuntu 24.04
-covering kernel parameters, AppArmor, auditd, PAM policy, SSH hardening,
-filesystem restrictions, AIDE integrity checking, and more.
+This is now an independent provisioner for Hetzner Cloud Ubuntu VMs. It keeps a
+CIS-oriented section layout for auditability, while the implementation is a
+two-phase orchestrated workflow: immediate lockdown first, then the full
+hardening pass behind both UFW and the Hetzner Cloud Firewall.
 
-We kept the upstream script's structure and section numbering as a reference
-point, but significantly reworked and extended it:
+The current default target is Ubuntu 26.04. Other Hetzner Ubuntu image slugs can
+be selected with `OS_IMAGE`, but they should be smoke-tested before being used
+for real workloads.
 
-- **Split into two phases.** The upstream ran everything in one pass, leaving
-  the VM exposed on port 22 with root access for the full duration (several
-  minutes). We separated the work into an immediate lockdown phase (~30 seconds,
-  no package installs) and a full CIS phase, so the attack surface is minimised
+- **Split into two phases.** A single-pass hardening run leaves the VM exposed
+  on port 22 with root access for the full duration (several minutes). This
+  project separates the work into an immediate lockdown phase (~30 seconds, no
+  package installs) and a full CIS phase, so the attack surface is minimised
   from the very first seconds of the VM's life.
 - **Added a Python orchestrator** (`provision.py`) that drives both phases via
   the Hetzner Cloud API: creates the VM and firewall, runs Phase 1, closes
@@ -73,7 +75,7 @@ sequenceDiagram
     participant H as Host (you)
     participant C as Container<br/>(provision.py)
     participant API as Hetzner API
-    participant VM as Ubuntu 24.04 VM
+    participant VM as Ubuntu 26.04 VM
 
     Note over H,C: ./run.sh
 
@@ -107,7 +109,7 @@ sequenceDiagram
 
     Note over C,VM: Post-provisioning verification
     C->>VM: Upload & run verify.sh
-    Note right of VM: 41 automated checks:<br/>SSH, UFW, sysctl, services,<br/>AIDE, rkhunter, msmtp,<br/>Podman, network ports, disk
+    Note right of VM: 43 automated checks:<br/>SSH, UFW, sysctl, services,<br/>AIDE, rkhunter, msmtp,<br/>Podman, network ports, disk
     VM-->>C: Exit code = number of failed checks
 
     C-->>H: Done — print connection details
@@ -172,8 +174,9 @@ via `sudo`.
 
 ## CIS Benchmark Coverage
 
-Both phases combined implement the following controls from the
-[CIS Ubuntu Linux 24.04 LTS Benchmark](https://www.cisecurity.org/benchmark/ubuntu_linux):
+Both phases combined implement the following controls from
+[CIS Ubuntu Linux Benchmark](https://www.cisecurity.org/benchmark/ubuntu_linux)
+guidance:
 
 | # | CIS Section | Level | Phase | Status |
 |---|---|---|---|---|
@@ -330,7 +333,7 @@ integration concerns and are not unit tested here.
 | `SERVER_NAME` | `hardened-node` | Name prefix — actual name is `<prefix>-<6hex>` |
 | `SERVER_TYPE` | `cx22` | Hetzner server type |
 | `LOCATION` | `fsn1` | Hetzner datacenter location |
-| `OS_IMAGE` | `ubuntu-24.04` | Base OS image |
+| `OS_IMAGE` | `ubuntu-26.04` | Base OS image |
 | `NEW_USER_NAME` | _(random)_ | Override the provisioned username |
 | `SMTP_HOST` | — | SMTP relay hostname (enables msmtp + email alerts) |
 | `SMTP_PORT` | `587` | SMTP port (STARTTLS) |
@@ -349,7 +352,7 @@ integration concerns and are not unit tested here.
 | `destroy.py` | Tear down a server and its Hetzner resources |
 | `harden-phase1.sh` | Phase 1 script (immediate lockdown, no apt) |
 | `harden-phase2.sh` | Phase 2 script (full CIS pipeline) |
-| `verify.sh` | Post-provisioning health check — 41 automated checks (SSH, UFW, sysctl, services, AIDE, rkhunter, msmtp, Podman, network ports, disk) |
+| `verify.sh` | Post-provisioning health check — 43 automated checks (SSH, UFW, sysctl, services, AIDE, rkhunter, msmtp, Podman, network ports, disk) |
 | `Dockerfile` | Container image for the provisioner |
 | `run.sh` | Wrapper: `./run.sh` to provision, `./run.sh destroy` to tear down |
 | `logs/` | Host-side logs — `<mode>-<timestamp>.log` for each run |

@@ -278,7 +278,7 @@ def main() -> None:
     server_name = f"{base_name}-{uuid.uuid4().hex[:6]}"
     server_type = os.getenv("SERVER_TYPE", "cx22")
     location    = os.getenv("LOCATION",    "fsn1")
-    os_image    = os.getenv("OS_IMAGE",    "ubuntu-24.04")
+    os_image    = os.getenv("OS_IMAGE",    "ubuntu-26.04")
 
     new_user = os.getenv("NEW_USER_NAME") or f"svc_{uuid.uuid4().hex[:8]}"
     ssh_port = secrets.choice(range(10_000, 60_000))
@@ -376,7 +376,7 @@ def main() -> None:
         )
         logger.info("Phase 1 script finished.")
 
-        # Restart sshd through the SAME session.  Ubuntu 24.04 ssh.service
+        # Restart sshd through the SAME session.  Ubuntu cloud ssh.service
         # uses KillMode=process — the main listener is killed but our
         # session's child process survives, so this command completes normally.
         logger.info(f"Restarting sshd to apply new config (port {ssh_port})...")

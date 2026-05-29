@@ -6,7 +6,7 @@
 # Goal: lock the VM down before any attacker can find it.
 #
 # NO apt-get installs — pure configuration of pre-installed
-# Ubuntu 24.04 packages. Expected runtime: < 30 seconds.
+# Ubuntu cloud image packages. Expected runtime: < 30 seconds.
 #
 # Usage: harden-phase1.sh <new_username> <ssh_port>
 # Pre-condition: /tmp/provisioner_pub_key must exist (uploaded
@@ -77,7 +77,7 @@ systemctl mask ctrl-alt-del.target
 log "ctrl-alt-del reboot disabled."
 
 # -------[ 6. Disable socket activation & write hardened sshd_config ]-------
-# Ubuntu 24.04 uses ssh.socket (systemd socket activation) which listens on
+# Ubuntu cloud images can use ssh.socket (systemd socket activation), which listens on
 # port 22 and passes the fd to sshd — ignoring the Port directive in sshd_config.
 # We must disable ssh.socket so sshd manages its own listening socket.
 systemctl disable --now ssh.socket 2>/dev/null || true
@@ -129,7 +129,7 @@ EOF
 sshd -t || die "sshd config validation failed — aborting before restart"
 log "sshd_config written and validated."
 
-# -------[ 7. UFW firewall (pre-installed on Ubuntu 24.04) ]-------
+# -------[ 7. UFW firewall (pre-installed on supported Ubuntu cloud images) ]-------
 ufw --force reset
 ufw default deny incoming
 ufw default allow outgoing
@@ -190,7 +190,7 @@ log "Core dumps disabled."
 
 # -------[ 11. Done — sshd restart is handled by the orchestrator ]-------
 # We do NOT restart sshd here. The orchestrator (provision.py) restarts it
-# through the same SSH session after this script exits.  On Ubuntu 24.04
+# through the same SSH session after this script exits.  On supported Ubuntu cloud images,
 # ssh.service uses KillMode=process, so the existing session child process
 # survives while the main listener restarts on the new port.
 log "Phase 1 complete. sshd config written for port $SSH_PORT."

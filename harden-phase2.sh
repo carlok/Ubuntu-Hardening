@@ -2,10 +2,9 @@
 # =============================================================
 # Phase 2: Full CIS-Level Hardening
 #
-# Derived from Hardening-Ubuntu-2024.sh (upstream fork).
 # Runs after Phase 1 as the unprivileged user via sudo.
 #
-# Key differences from upstream:
+# Design notes:
 #   - Section 5.1: SSH uses drop-in config only (preserves Phase 1
 #     port/AllowUsers settings); does NOT overwrite sshd_config.
 #   - Section 5.4: Skips PasswordAuthentication (set in Phase 1).
@@ -13,6 +12,8 @@
 #     rkhunter, Podman rootless setup.
 #   - Uses full-upgrade (security + kernel) not just upgrade.
 #   - Adds apt autoremove/clean.
+#   - Supports the Ubuntu 26.04 smoke-tested path, including sudo-rs and
+#     explicit systemd-timesyncd installation.
 #
 # Pre-conditions:
 #   - Phase 1 already ran: user exists, SSH port locked down.

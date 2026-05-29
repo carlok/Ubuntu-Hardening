@@ -15,7 +15,7 @@ DEFAULTS = {
     "SERVER_NAME": "hardened-node",
     "SERVER_TYPE": "cx22",
     "LOCATION": "fsn1",
-    "OS_IMAGE": "ubuntu-24.04",
+    "OS_IMAGE": "ubuntu-26.04",
     "SMTP_PORT": "587",
 }
 
