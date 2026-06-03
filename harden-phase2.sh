@@ -78,9 +78,32 @@ run_cmd "chmod og-rwx /boot/grub/grub.cfg 2>/dev/null || true" "Set grub.cfg per
 
 start_section "1.3 — AppArmor & kernel hardening"
 run_cmd "apt-get install -y apparmor-utils apparmor-profiles apparmor-profiles-extra" "Install AppArmor utils"
+
+should_skip_apparmor_complain() {
+    local profile_file="$1"
+    local profile_name
+    profile_name="$(basename "$profile_file")"
+
+    case "$profile_name" in
+        *buildah*|*crun*|*docker*|*podman*|*runc*|*rootlesskit*|*slirp4netns*)
+            return 0
+            ;;
+    esac
+
+    # Some AppArmor profiles, including OCI runtime profiles, are intentionally
+    # shipped as unconfined. Moving them to complain can still break memfd/fd
+    # re-exec paths used by runc/crun.
+    grep -Eq 'flags=\([^)]*unconfined' "$profile_file"
+}
+
 for profile in /etc/apparmor.d/*; do
-    [[ -f "$profile" ]] && grep -q '^profile ' "$profile" && \
+    [[ -f "$profile" ]] || continue
+    grep -q '^profile ' "$profile" || continue
+    if should_skip_apparmor_complain "$profile"; then
+        log_ok "Leave AppArmor profile unchanged: $(basename "$profile")"
+    else
         run_cmd "aa-complain '$profile' >/dev/null 2>&1 || true" "Complain mode: $(basename "$profile")"
+    fi
 done
 run_cmd 'echo "kernel.randomize_va_space = 2" > /etc/sysctl.d/60-aslr.conf' "Enable ASLR"
 run_cmd 'echo "kernel.yama.ptrace_scope = 1" > /etc/sysctl.d/60-yama.conf' "Restrict ptrace scope"

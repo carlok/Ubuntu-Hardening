@@ -155,7 +155,8 @@ via `sudo`.
 
 - `apt full-upgrade` (security + kernel patches), `autoremove`, `clean`
 - Removes 20+ unnecessary services (avahi, cups, NFS, Samba, SNMP, …)
-- AppArmor (complain mode), auditd with comprehensive ruleset, AIDE file
+- AppArmor (complain mode for ordinary profiles; container runtime profiles
+  left unchanged), auditd with comprehensive ruleset, AIDE file
   integrity (daily cron), rsyslog, journald (persistent), process accounting
 - Kernel module blacklisting (cramfs, usb-storage, dccp, sctp, …); secure
   tmpfs mounts for `/tmp`, `/dev/shm`, `/var/tmp`
@@ -182,7 +183,7 @@ guidance:
 |---|---|---|---|---|
 | 1.1 | Filesystem module blacklisting (cramfs, freevxfs, hfs, usb-storage, …) | L1 | 2 | ✅ Implemented |
 | 1.2 | Package updates (`full-upgrade`, autoremove, GRUB permissions) | L1 | 2 | ✅ Implemented |
-| 1.3 | AppArmor (complain mode), ASLR, ptrace scope | L1 | 2 | ✅ Implemented |
+| 1.3 | AppArmor (complain mode for ordinary profiles), ASLR, ptrace scope | L1 | 2 | ✅ Implemented |
 | 1.4 | Core dump hardening (limits.conf, suid_dumpable) | L1 | 1+2 | ✅ Implemented |
 | 1.5 | Remove prelink/apport; unattended-upgrades (security-only) | L1 | 2 | ✅ Implemented |
 | 1.6 | Login banner / MOTD hardening | L1 | 1+2 | ✅ Implemented |
