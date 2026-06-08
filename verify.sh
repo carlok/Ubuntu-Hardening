@@ -148,11 +148,29 @@ else
 fi
 echo ""
 
-# ── Podman ────────────────────────────────────────────────
-echo "--- Podman ---"
+# ── Container runtimes ────────────────────────────────────
+echo "--- Container runtimes ---"
+check "Docker installed" \
+    "command -v docker"
+check "Docker Compose plugin installed" \
+    "docker compose version >/dev/null 2>&1"
+check "Docker service running" \
+    "systemctl is-active --quiet docker"
 check "Podman installed" \
     "command -v podman"
+check "podman-compose installed" \
+    "command -v podman-compose"
+check "Podman compose wrapper available" \
+    "podman compose version >/dev/null 2>&1"
 if [[ -n "$USER_CHECK" ]]; then
+    check "$USER_CHECK can use Docker without sudo" \
+        "su - '$USER_CHECK' -c 'docker version >/dev/null 2>&1'"
+    check "$USER_CHECK can use Docker Compose without sudo" \
+        "su - '$USER_CHECK' -c 'docker compose version >/dev/null 2>&1'"
+    check "$USER_CHECK can use Podman" \
+        "su - '$USER_CHECK' -c 'podman info >/dev/null 2>&1'"
+    check "$USER_CHECK can use podman-compose" \
+        "su - '$USER_CHECK' -c 'podman-compose version >/dev/null 2>&1'"
     check "subuid configured for $USER_CHECK" \
         "grep -q '${USER_CHECK}' /etc/subuid"
     check "subgid configured for $USER_CHECK" \

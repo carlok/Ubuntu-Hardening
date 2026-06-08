@@ -9,7 +9,7 @@
 #     port/AllowUsers settings); does NOT overwrite sshd_config.
 #   - Section 5.4: Skips PasswordAuthentication (set in Phase 1).
 #   - New Section 8: fail2ban, msmtp, logwatch, needrestart,
-#     rkhunter, Podman rootless setup.
+#     rkhunter, Docker + Compose, Podman + Compose setup.
 #   - Uses full-upgrade (security + kernel) not just upgrade.
 #   - Adds apt autoremove/clean.
 #   - Supports the Ubuntu 26.04 smoke-tested path, including sudo-rs and
@@ -539,17 +539,45 @@ run_cmd "rkhunter --propupd" "Build rkhunter baseline (initial file properties)"
 echo "30 3 * * * root rkhunter --check --skip-keypress --report-warnings-only 2>&1 | mail -s 'rkhunter report' root" > /etc/cron.d/rkhunter
 run_cmd "chmod 644 /etc/cron.d/rkhunter" "Schedule nightly rkhunter scan (03:30)"
 
-start_section "8.6 — Podman (rootless container runtime)"
-run_cmd "apt-get install -y podman uidmap slirp4netns fuse-overlayfs" "Install Podman + rootless deps"
+start_section "8.6 — Container runtimes (Docker + Podman)"
 
-# Detect the provisioned user (non-root, non-system, has home dir)
-PODMAN_USER=$(awk -F: '$3 >= 1000 && $3 < 65534 && $7 != "/usr/sbin/nologin" {print $1}' /etc/passwd | head -1)
-if [[ -n "$PODMAN_USER" ]]; then
-    run_cmd "loginctl enable-linger $PODMAN_USER" "Enable systemd linger for $PODMAN_USER (rootless Podman)"
-    run_cmd "su - $PODMAN_USER -c 'podman system migrate' 2>/dev/null || true" "Migrate Podman storage for $PODMAN_USER"
-    log_ok "Rootless Podman configured for user: $PODMAN_USER"
+# Detect the provisioned user (non-root, non-system, has home dir).
+CONTAINER_USER=$(awk -F: '$3 >= 1000 && $3 < 65534 && $7 != "/usr/sbin/nologin" {print $1}' /etc/passwd | head -1)
+
+run_cmd "for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do apt-get remove -y \"\$pkg\" 2>/dev/null || true; done" "Remove packages that conflict with Docker's official repository"
+run_cmd "apt-get install -y ca-certificates curl" "Install Docker repository prerequisites"
+run_cmd "install -m 0755 -d /etc/apt/keyrings" "Create apt keyring directory"
+run_cmd "curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc" "Download Docker apt signing key"
+run_cmd "chmod a+r /etc/apt/keyrings/docker.asc" "Make Docker apt signing key readable"
+DOCKER_UBUNTU_CODENAME=$(. /etc/os-release && echo "${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}")
+if [[ -z "$DOCKER_UBUNTU_CODENAME" ]]; then
+    log_err "Could not determine Ubuntu codename for Docker apt repository"
+fi
+cat > /etc/apt/sources.list.d/docker.sources << EOF
+Types: deb
+URIs: https://download.docker.com/linux/ubuntu
+Suites: $DOCKER_UBUNTU_CODENAME
+Components: stable
+Architectures: $(dpkg --print-architecture)
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF
+run_cmd "apt-get update -qq" "Update package index with Docker repository"
+run_cmd "apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin" "Install latest Docker Engine, Buildx, and Compose plugin"
+run_cmd "systemctl enable --now containerd docker" "Enable Docker services"
+
+run_cmd "apt-get install -y podman podman-compose uidmap slirp4netns fuse-overlayfs" "Install Podman, podman-compose, and rootless deps"
+run_cmd "for profile in runc crun podman buildah rootlesskit slirp4netns; do aa-disable \"\$profile\" >/dev/null 2>&1 || true; done" "Disable AppArmor profiles that break OCI runtime fd/memfd re-exec"
+run_cmd "systemctl reload apparmor 2>/dev/null || systemctl restart apparmor 2>/dev/null || true" "Reload AppArmor after runtime profile changes"
+
+if [[ -n "$CONTAINER_USER" ]]; then
+    run_cmd "usermod -aG docker '$CONTAINER_USER'" "Allow $CONTAINER_USER to run Docker without sudo"
+    run_cmd "grep -q '^${CONTAINER_USER}:' /etc/subuid || usermod --add-subuids 100000-165535 '$CONTAINER_USER'" "Ensure subuid range for $CONTAINER_USER"
+    run_cmd "grep -q '^${CONTAINER_USER}:' /etc/subgid || usermod --add-subgids 100000-165535 '$CONTAINER_USER'" "Ensure subgid range for $CONTAINER_USER"
+    run_cmd "loginctl enable-linger '$CONTAINER_USER'" "Enable systemd linger for $CONTAINER_USER (rootless Podman)"
+    run_cmd "su - '$CONTAINER_USER' -c 'podman system migrate' 2>/dev/null || true" "Migrate Podman storage for $CONTAINER_USER"
+    log_ok "Docker and rootless Podman configured for user: $CONTAINER_USER"
 else
-    log_err "Could not detect provisioned user for Podman setup"
+    log_err "Could not detect provisioned user for container runtime setup"
 fi
 
 # ===============[ Final Summary ]===============

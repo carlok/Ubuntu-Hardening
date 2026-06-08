@@ -22,7 +22,7 @@ The approach is to separate the work into two phases:
     port opened — a second layer on top of UFW
 - **Phase 2 (full CIS pipeline)** — runs entirely behind both firewalls, as
   an unprivileged user on the new port: package updates, AppArmor, auditd,
-  AIDE, PAM hardening, fail2ban, rkhunter, msmtp, Podman
+  AIDE, PAM hardening, fail2ban, rkhunter, msmtp, Docker, Podman
 
 An orchestrator drives both phases through the Hetzner Cloud API, so the
 whole thing — VM creation, hardening, verification — runs as a single command
@@ -62,7 +62,7 @@ for real workloads.
   wired as the system MTA so auditd, AIDE, rkhunter, and logwatch can all send
   email with no daemon running.
 - **Added tooling**: fail2ban, needrestart, rkhunter (with nightly cron),
-  logwatch, Podman rootless runtime.
+  logwatch, Docker, Podman, and Compose tooling.
 - **Added `destroy.py`**: a companion CLI tool to cleanly tear down a server
   and all associated Hetzner resources (firewall, orphaned SSH keys).
 
@@ -104,12 +104,12 @@ sequenceDiagram
     Note over C,VM: Phase 2 — Full CIS Hardening (several minutes)
     C->>VM: SSH user@IP:random_port (key auth)
     C->>VM: Upload & run harden-phase2.sh (sudo)
-    Note right of VM: apt full-upgrade<br/>Remove unnecessary services<br/>AppArmor, auditd, AIDE<br/>SSH cipher/MAC hardening<br/>PAM lockout + password policy<br/>unattended-upgrades<br/>fail2ban, needrestart<br/>rkhunter, logwatch<br/>msmtp (email alerts)<br/>Podman rootless
+    Note right of VM: apt full-upgrade<br/>Remove unnecessary services<br/>AppArmor, auditd, AIDE<br/>SSH cipher/MAC hardening<br/>PAM lockout + password policy<br/>unattended-upgrades<br/>fail2ban, needrestart<br/>rkhunter, logwatch<br/>msmtp (email alerts)<br/>Docker + Compose<br/>Podman + Compose
     VM-->>C: Script exits 0
 
     Note over C,VM: Post-provisioning verification
     C->>VM: Upload & run verify.sh
-    Note right of VM: 43 automated checks:<br/>SSH, UFW, sysctl, services,<br/>AIDE, rkhunter, msmtp,<br/>Podman, network ports, disk
+    Note right of VM: 51 automated checks:<br/>SSH, UFW, sysctl, services,<br/>AIDE, rkhunter, msmtp,<br/>Docker, Podman, network ports, disk
     VM-->>C: Exit code = number of failed checks
 
     C-->>H: Done — print connection details
@@ -156,7 +156,7 @@ via `sudo`.
 - `apt full-upgrade` (security + kernel patches), `autoremove`, `clean`
 - Removes 20+ unnecessary services (avahi, cups, NFS, Samba, SNMP, …)
 - AppArmor (complain mode for ordinary profiles; container runtime profiles
-  left unchanged), auditd with comprehensive ruleset, AIDE file
+  kept out of complain/enforce mode), auditd with comprehensive ruleset, AIDE file
   integrity (daily cron), rsyslog, journald (persistent), process accounting
 - Kernel module blacklisting (cramfs, usb-storage, dccp, sctp, …); secure
   tmpfs mounts for `/tmp`, `/dev/shm`, `/var/tmp`
@@ -169,7 +169,14 @@ via `sudo`.
 - logwatch daily digest (via msmtp if SMTP is configured)
 - **msmtp** — lightweight SMTP client wired as system MTA (no postfix daemon);
   lets auditd, AIDE, rkhunter, logwatch send email alerts
-- Podman rootless runtime for the provisioned user
+- Docker Engine from Docker's official apt repository, with Buildx and the
+  Docker Compose plugin; the provisioned user is added to the `docker` group
+  for non-sudo Docker use
+- Podman rootless runtime and `podman-compose` for the provisioned user
+
+> **Docker note:** membership in the `docker` group is effectively
+> root-equivalent. It is enabled here because the provisioned user is the
+> intended operator account and the workflow expects non-sudo Docker access.
 
 ---
 
@@ -216,7 +223,7 @@ guidance:
 | 8.3 | logwatch (daily security digest) | 2 |
 | 8.4 | needrestart (auto-restart services after upgrades) | 2 |
 | 8.5 | rkhunter (rootkit detection, nightly scan) | 2 |
-| 8.6 | Podman (rootless container runtime) | 2 |
+| 8.6 | Docker + Compose, Podman + Compose container runtimes | 2 |
 | — | Hetzner Cloud Firewall (network-level port control) | 1 |
 | — | TCP wrappers (`hosts.deny ALL:ALL`) | 1 |
 | — | Random hostname (obscures server purpose) | 1 |
@@ -353,7 +360,7 @@ integration concerns and are not unit tested here.
 | `destroy.py` | Tear down a server and its Hetzner resources |
 | `harden-phase1.sh` | Phase 1 script (immediate lockdown, no apt) |
 | `harden-phase2.sh` | Phase 2 script (full CIS pipeline) |
-| `verify.sh` | Post-provisioning health check — 43 automated checks (SSH, UFW, sysctl, services, AIDE, rkhunter, msmtp, Podman, network ports, disk) |
+| `verify.sh` | Post-provisioning health check — 51 automated checks (SSH, UFW, sysctl, services, AIDE, rkhunter, msmtp, Docker, Podman, network ports, disk) |
 | `Dockerfile` | Container image for the provisioner |
 | `run.sh` | Wrapper: `./run.sh` to provision, `./run.sh destroy` to tear down |
 | `logs/` | Host-side logs — `<mode>-<timestamp>.log` for each run |
