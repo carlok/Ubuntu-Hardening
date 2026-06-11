@@ -580,6 +580,10 @@ else
     log_err "Could not detect provisioned user for container runtime setup"
 fi
 
+start_section "8.7 — Final package cleanup"
+run_cmd "apt-get autoremove -y" "Remove unused packages"
+run_cmd "apt-get clean" "Clean package cache"
+
 # ===============[ Final Summary ]===============
 echo ""
 echo "[$(date '+%H:%M:%S')] ===[ Phase 2 Complete ]=============================="
