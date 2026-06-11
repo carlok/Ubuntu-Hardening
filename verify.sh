@@ -94,8 +94,13 @@ echo ""
 echo "--- Kernel / sysctl ---"
 check "SYN cookies enabled" \
     "test $(sysctl -n net.ipv4.tcp_syncookies) -eq 1"
-check "IP forwarding disabled" \
-    "test $(sysctl -n net.ipv4.ip_forward) -eq 0"
+if command -v docker >/dev/null 2>&1; then
+    check "IP forwarding enabled for Docker" \
+        "test $(sysctl -n net.ipv4.ip_forward) -eq 1"
+else
+    check "IP forwarding disabled" \
+        "test $(sysctl -n net.ipv4.ip_forward) -eq 0"
+fi
 check "Reverse path filtering" \
     "test $(sysctl -n net.ipv4.conf.all.rp_filter) -eq 1"
 check "IPv6 disabled" \
