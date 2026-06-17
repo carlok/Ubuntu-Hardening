@@ -22,7 +22,7 @@ The approach is to separate the work into two phases:
     port opened — a second layer on top of UFW
 - **Phase 2 (full CIS pipeline)** — runs entirely behind both firewalls, as
   an unprivileged user on the new port: package updates, AppArmor, auditd,
-  AIDE, PAM hardening, fail2ban, rkhunter, msmtp, Docker, Podman
+  AIDE, PAM hardening, fail2ban, rkhunter, msmtp, swap, Docker, Podman
 
 An orchestrator drives both phases through the Hetzner Cloud API, so the
 whole thing — VM creation, hardening, verification — runs as a single command
@@ -104,12 +104,12 @@ sequenceDiagram
     Note over C,VM: Phase 2 — Full CIS Hardening (several minutes)
     C->>VM: SSH user@IP:random_port (key auth)
     C->>VM: Upload & run harden-phase2.sh (sudo)
-    Note right of VM: apt full-upgrade<br/>Remove unnecessary services<br/>AppArmor, auditd, AIDE<br/>SSH cipher/MAC hardening<br/>PAM lockout + password policy<br/>unattended-upgrades<br/>fail2ban, needrestart<br/>rkhunter, logwatch<br/>msmtp (email alerts)<br/>Docker + Compose<br/>Podman + Compose
+    Note right of VM: apt full-upgrade<br/>Remove unnecessary services<br/>AppArmor, auditd, AIDE<br/>Swapfile<br/>SSH cipher/MAC hardening<br/>PAM lockout + password policy<br/>unattended-upgrades<br/>fail2ban, needrestart<br/>rkhunter, logwatch<br/>msmtp (email alerts)<br/>Docker + Compose<br/>Podman + Compose
     VM-->>C: Script exits 0
 
     Note over C,VM: Post-provisioning verification
     C->>VM: Upload & run verify.sh
-    Note right of VM: 51 automated checks:<br/>SSH, UFW, sysctl, services,<br/>AIDE, rkhunter, msmtp,<br/>Docker, Podman, network ports, disk
+    Note right of VM: 58 automated checks:<br/>SSH, UFW, sysctl, swap, services,<br/>AIDE, rkhunter, msmtp,<br/>Docker, Podman, network ports, disk
     VM-->>C: Exit code = number of failed checks
 
     C-->>H: Done — print connection details
@@ -160,6 +160,7 @@ via `sudo`.
   integrity (daily cron), rsyslog, journald (persistent), process accounting
 - Kernel module blacklisting (cramfs, usb-storage, dccp, sctp, …); secure
   tmpfs mounts for `/tmp`, `/dev/shm`, `/var/tmp`
+- 4G swapfile with `vm.swappiness=10`, created before the AIDE baseline
 - SSH drop-in at `/etc/ssh/sshd_config.d/50-cis-hardening.conf`: cipher/MAC
   hardening, verbose logging — **does not overwrite Phase 1 settings**
 - PAM: faillock (4 attempts, 15 min lock), pwquality (14-char min),
@@ -224,6 +225,7 @@ guidance:
 | 8.4 | needrestart (auto-restart services after upgrades) | 2 |
 | 8.5 | rkhunter (rootkit detection, nightly scan) | 2 |
 | 8.6 | Docker + Compose, Podman + Compose container runtimes | 2 |
+| 1.9 | 4G swapfile (operational resilience for small VMs) | 2 |
 | — | Hetzner Cloud Firewall (network-level port control) | 1 |
 | — | TCP wrappers (`hosts.deny ALL:ALL`) | 1 |
 | — | Random hostname (obscures server purpose) | 1 |
@@ -360,7 +362,7 @@ integration concerns and are not unit tested here.
 | `destroy.py` | Tear down a server and its Hetzner resources |
 | `harden-phase1.sh` | Phase 1 script (immediate lockdown, no apt) |
 | `harden-phase2.sh` | Phase 2 script (full CIS pipeline) |
-| `verify.sh` | Post-provisioning health check — 51 automated checks (SSH, UFW, sysctl, services, AIDE, rkhunter, msmtp, Docker, Podman, network ports, disk) |
+| `verify.sh` | Post-provisioning health check — 58 automated checks (SSH, UFW, sysctl, swap, services, AIDE, rkhunter, msmtp, Docker, Podman, network ports, disk) |
 | `Dockerfile` | Container image for the provisioner |
 | `run.sh` | Wrapper: `./run.sh` to provision, `./run.sh destroy` to tear down |
 | `logs/` | Host-side logs — `<mode>-<timestamp>.log` for each run |

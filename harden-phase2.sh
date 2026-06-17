@@ -144,6 +144,22 @@ run_cmd 'grep -q "^tmpfs /dev/shm" /etc/fstab || echo "tmpfs /dev/shm tmpfs defa
 run_cmd 'grep -q "^/tmp /var/tmp"  /etc/fstab || echo "/tmp /var/tmp none bind 0 0"                            >> /etc/fstab' "Bind /var/tmp → /tmp"
 run_cmd "mount -a || true" "Apply fstab mounts"
 
+start_section "1.9 — Swapfile"
+run_cmd 'free_gb=$(df -BG / | awk "NR==2 {gsub(/G/, \"\", \$4); print \$4}"); test "${free_gb:-0}" -ge 5' "Verify at least 5G free on root filesystem for swap"
+if [[ ! -f /swapfile ]]; then
+    run_cmd "fallocate -l 4G /swapfile" "Create 4G swapfile"
+    run_cmd "chmod 600 /swapfile" "Secure swapfile permissions"
+    run_cmd "mkswap /swapfile" "Format swapfile"
+else
+    log_ok "/swapfile already exists — leaving contents unchanged"
+    run_cmd "chmod 600 /swapfile" "Ensure swapfile permissions"
+fi
+run_cmd "swapon --show=NAME --noheadings | grep -qx '/swapfile' || swapon /swapfile" "Enable swapfile"
+run_cmd "cp -n /etc/fstab /etc/fstab.bak" "Backup fstab once"
+run_cmd "grep -qE '^[[:space:]]*/swapfile[[:space:]]+' /etc/fstab || echo '/swapfile none swap sw,nofail 0 0' >> /etc/fstab" "Persist swapfile in fstab"
+run_cmd "echo 'vm.swappiness=10' > /etc/sysctl.d/99-swappiness.conf" "Persist swappiness setting"
+run_cmd "sysctl -w vm.swappiness=10" "Apply swappiness setting"
+
 # ===============[ SECTION 2: Services ]===============
 
 start_section "2.1 — Remove unnecessary network services"

@@ -113,6 +113,22 @@ check "Core dumps disabled (suid_dumpable=0)" \
     "test $(sysctl -n fs.suid_dumpable) -eq 0"
 echo ""
 
+# ── Swap ──────────────────────────────────────────────────
+echo "--- Swap ---"
+check "swapfile exists" \
+    "test -f /swapfile"
+check "swapfile permissions are 600" \
+    "test $(stat -c '%a' /swapfile) -eq 600"
+check "swapfile active" \
+    "swapon --show=NAME --noheadings | grep -qx '/swapfile'"
+check "swapfile persisted in fstab" \
+    "grep -qE '^[[:space:]]*/swapfile[[:space:]]+none[[:space:]]+swap[[:space:]]+sw,nofail[[:space:]]+0[[:space:]]+0' /etc/fstab"
+check "swappiness set to 10" \
+    "test $(sysctl -n vm.swappiness) -eq 10"
+check "fstab verifies cleanly" \
+    "findmnt --verify >/dev/null 2>&1"
+echo ""
+
 # ── Services ──────────────────────────────────────────────
 echo "--- Services ---"
 check "auditd running" \
