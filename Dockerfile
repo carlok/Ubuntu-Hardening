@@ -12,6 +12,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY provision.py destroy.py preflight.py run.sh harden-phase1.sh harden-phase2.sh verify.sh .
+COPY availability/ availability/
 RUN chmod +x run.sh harden-phase1.sh harden-phase2.sh verify.sh
 
 ENTRYPOINT ["python"]

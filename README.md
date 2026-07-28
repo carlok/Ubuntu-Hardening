@@ -256,6 +256,30 @@ nano .env          # fill in HCLOUD_TOKEN at minimum
 Optional settings: region, server type, a fixed username, and SMTP credentials
 for email alerts (auditd, AIDE, rkhunter, logwatch all use the same MTA).
 
+### Availability polling
+
+The standalone `availability/poll.py` script checks the configured server types
+against Hetzner's current per-location availability indicator and emails the
+matching types using the SMTP settings above. It does not create a server, and
+availability is only an indicator rather than a guarantee that creation will
+succeed.
+
+Set `POLL_SERVER_TYPES` to a comma-separated list such as
+`cx22,cx23,cx33`, set `POLL_LOCATION` to one or more comma-separated locations
+(default `fsn1`), and run it from a host
+Python environment with the project dependencies installed:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python availability/poll.py
+```
+
+For a daily cron job, copy `availability/cron.example`, replace its two
+absolute paths, and add the resulting line with `crontab -e`. The poller sends
+one email on each run where at least one configured type is reported available;
+it stays quiet when all configured types are unavailable.
+
 ### 2. Build and provision
 
 ```bash
@@ -351,6 +375,8 @@ integration concerns and are not unit tested here.
 | `SMTP_PASS` | — | SMTP password |
 | `SMTP_FROM` | — | Sender address |
 | `ALERT_EMAIL` | — | Recipient for security digests |
+| `POLL_SERVER_TYPES` | `cx22,cx23,cx33` | Comma-separated server types checked by the availability poller |
+| `POLL_LOCATION` | `fsn1` | Comma-separated locations checked by the availability poller |
 
 ---
 
@@ -365,5 +391,7 @@ integration concerns and are not unit tested here.
 | `verify.sh` | Post-provisioning health check — 58 automated checks (SSH, UFW, sysctl, swap, services, AIDE, rkhunter, msmtp, Docker, Podman, network ports, disk) |
 | `Dockerfile` | Container image for the provisioner |
 | `run.sh` | Wrapper: `./run.sh` to provision, `./run.sh destroy` to tear down |
+| `availability/poll.py` | Daily-check script for reported Hetzner server-type availability |
+| `availability/cron.example` | Example daily cron entry for the availability poller |
 | `logs/` | Host-side logs — `<mode>-<timestamp>.log` for each run |
 | `.env.example` | Configuration template |

@@ -1,0 +1,2 @@
+# Daily at 08:15. Replace both absolute paths before installing with crontab -e.
+15 8 * * * cd /absolute/path/to/provisioner && /absolute/path/to/provisioner/.venv/bin/python availability/poll.py >> logs/availability.log 2>&1

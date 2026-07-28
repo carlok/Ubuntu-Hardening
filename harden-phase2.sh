@@ -291,7 +291,7 @@ run_cmd 'sed -i "/^PASS_MAX_DAYS/c\PASS_MAX_DAYS   180" /etc/login.defs' "Passwo
 run_cmd 'sed -i "/^PASS_MIN_DAYS/c\PASS_MIN_DAYS   7"   /etc/login.defs' "Password min age: 7 days"
 run_cmd 'sed -i "/^PASS_WARN_AGE/c\PASS_WARN_AGE   14"  /etc/login.defs' "Password warning: 14 days"
 run_cmd 'sed -i "/^ENCRYPT_METHOD/c\ENCRYPT_METHOD SHA512" /etc/login.defs' "Password hashing: SHA512"
-run_cmd 'sed -i "/^UMASK/c\UMASK 077" /etc/login.defs' "Default umask: 077"
+run_cmd 'sed -i "/^UMASK/c\UMASK 027" /etc/login.defs' "Default umask: 027"
 run_cmd 'useradd -D -f 30' "Lock inactive accounts after 30 days"
 
 run_cmd "apt-get install -y libpam-pwquality" "Install pam_pwquality"
