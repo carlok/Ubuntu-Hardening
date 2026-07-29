@@ -17,7 +17,7 @@ The approach is to separate the work into two phases:
   - UFW is enabled early: default-deny-incoming, only the new random SSH port
     open — OS-level firewall closes the gap within seconds of first connection
   - New unprivileged user, key-only SSH, root locked, random high port
-  - sysctl hardening, TCP wrappers, hostname randomised
+  - sysctl hardening, TCP wrappers, hostname set to the full Hetzner server name
   - At exit: Hetzner Cloud Firewall updated via API — port 22 closed, random
     port opened — a second layer on top of UFW
 - **Phase 2 (full CIS pipeline)** — runs entirely behind both firewalls, as
@@ -91,7 +91,7 @@ sequenceDiagram
     C->>VM: SSH root@IP:22 (key auth)
     C->>VM: Upload public key → /tmp/provisioner_pub_key
     C->>VM: Upload & run harden-phase1.sh
-    Note right of VM: Create user svc_‹hex›<br/>Install SSH key for user<br/>Write sshd_config (new port)<br/>Disable ssh.socket<br/>UFW deny-all + allow new port<br/>sysctl hardening<br/>Lock root, randomise hostname
+    Note right of VM: Create user svc_‹hex›<br/>Install SSH key for user<br/>Write sshd_config (new port)<br/>Disable ssh.socket<br/>UFW deny-all + allow new port<br/>sysctl hardening<br/>Lock root, set hostname to server name
     VM-->>C: Script exits 0
     C->>VM: systemctl restart ssh
     Note right of VM: sshd restarts on<br/>random high port
@@ -228,7 +228,7 @@ guidance:
 | 1.9 | 4G swapfile (operational resilience for small VMs) | 2 |
 | — | Hetzner Cloud Firewall (network-level port control) | 1 |
 | — | TCP wrappers (`hosts.deny ALL:ALL`) | 1 |
-| — | Random hostname (obscures server purpose) | 1 |
+| — | OS hostname aligned to the generated Hetzner server name | 1 |
 | — | ctrl-alt-del reboot disabled | 1 |
 | — | Root account locked | 1 |
 | — | `ssh.socket` disabled (prevents port override) | 1 |
@@ -364,7 +364,7 @@ integration concerns and are not unit tested here.
 | Variable | Default | Description |
 |---|---|---|
 | `HCLOUD_TOKEN` | — | **Required.** Hetzner Cloud API token |
-| `SERVER_NAME` | `hardened-node` | Name prefix — actual name is `<prefix>-<6hex>` |
+| `SERVER_NAME` | `hardened-node` | Name prefix — actual Hetzner name and OS hostname are `<prefix>-<6hex>` |
 | `SERVER_TYPE` | `cx22` | Hetzner server type |
 | `LOCATION` | `fsn1` | Hetzner datacenter location |
 | `OS_IMAGE` | `ubuntu-26.04` | Base OS image |

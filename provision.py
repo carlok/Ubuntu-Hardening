@@ -371,7 +371,7 @@ def main() -> None:
         execute_remote_script(
             ssh_client,
             "harden-phase1.sh",
-            args=f"{new_user} {ssh_port}",
+            args=f"{new_user} {ssh_port} {server_name}",
             use_sudo=False,
         )
         logger.info("Phase 1 script finished.")

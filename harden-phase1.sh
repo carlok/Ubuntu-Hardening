@@ -8,7 +8,7 @@
 # NO apt-get installs — pure configuration of pre-installed
 # Ubuntu cloud image packages. Expected runtime: < 30 seconds.
 #
-# Usage: harden-phase1.sh <new_username> <ssh_port>
+# Usage: harden-phase1.sh <new_username> <ssh_port> [hostname]
 # Pre-condition: /tmp/provisioner_pub_key must exist (uploaded
 #                by the orchestrator before calling this script)
 # =============================================================
@@ -17,6 +17,7 @@ set -euo pipefail
 
 NEW_USER="$1"
 SSH_PORT="$2"
+REQUESTED_HOSTNAME="${3:-}"
 
 LOGFILE="/var/log/harden-phase1.log"
 exec > >(tee -a "$LOGFILE") 2>&1
@@ -25,7 +26,7 @@ log()  { echo "[$(date '+%H:%M:%S')] [INFO]  $*"; }
 warn() { echo "[$(date '+%H:%M:%S')] [WARN]  $*"; }
 die()  { echo "[$(date '+%H:%M:%S')] [ERROR] $*"; exit 1; }
 
-[[ -z "${NEW_USER:-}" || -z "${SSH_PORT:-}" ]] && die "Usage: $0 <username> <ssh_port>"
+[[ -z "${NEW_USER:-}" || -z "${SSH_PORT:-}" ]] && die "Usage: $0 <username> <ssh_port> [hostname]"
 [[ -f /tmp/provisioner_pub_key ]] || die "Public key not found at /tmp/provisioner_pub_key"
 
 log "=== Phase 1: Immediate Lockdown Starting ==="
@@ -49,13 +50,21 @@ log "User created."
 passwd -l root
 log "Root account locked."
 
-# -------[ 3. Random hostname (obscures server purpose) ]-------
-RANDOM_HOSTNAME="node-$(openssl rand -hex 4)"
-hostnamectl set-hostname "$RANDOM_HOSTNAME"
+# -------[ 3. Hostname ]-------
+HOSTNAME_VALUE="$(
+    printf '%s' "$REQUESTED_HOSTNAME" \
+        | tr '[:upper:]_' '[:lower:]-' \
+        | sed -E 's/[^a-z0-9.-]+/-/g; s/^[^a-z0-9]+//; s/[^a-z0-9]+$//; s/-+/-/g' \
+        | cut -c1-63
+)"
+if [[ -z "$HOSTNAME_VALUE" ]]; then
+    HOSTNAME_VALUE="node-$(openssl rand -hex 4)"
+fi
+hostnamectl set-hostname "$HOSTNAME_VALUE"
 # Update /etc/hosts so the hostname resolves locally
 sed -i "/127.0.1.1/d" /etc/hosts
-echo "127.0.1.1 $RANDOM_HOSTNAME" >> /etc/hosts
-log "Hostname randomised to: $RANDOM_HOSTNAME"
+echo "127.0.1.1 $HOSTNAME_VALUE" >> /etc/hosts
+log "Hostname set to: $HOSTNAME_VALUE"
 
 # -------[ 4. Legal deterrent banner ]-------
 cat > /etc/issue.net << 'BANNER'
