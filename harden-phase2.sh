@@ -135,6 +135,23 @@ start_section "1.6 — MOTD / login banner"
 run_cmd "chmod -x /etc/update-motd.d/* 2>/dev/null || true" "Disable dynamic MOTD scripts"
 run_cmd "chmod 644 /etc/issue.net /etc/issue /etc/motd 2>/dev/null || true" "Fix banner permissions"
 
+start_section "1.6a — Terminal editor defaults"
+# Ubuntu's Vim defaults enable xterm mouse reporting.  On remote terminals this
+# captures terminal selection, making normal copy/paste needlessly difficult.
+# Vim sources this file before defaults.vim, so defer the override to VimEnter.
+if [[ -d /etc/vim ]]; then
+    cat > /etc/vim/vimrc.local << 'EOF'
+augroup terminal_mouse_copy
+  autocmd!
+  autocmd VimEnter * set mouse=
+augroup END
+EOF
+    chmod 644 /etc/vim/vimrc.local
+    log_ok "Leave Vim mouse selection to the terminal emulator"
+else
+    log_ok "Vim configuration directory absent — terminal mouse policy skipped"
+fi
+
 start_section "1.7 — Remove GUI"
 run_cmd "dpkg -l gdm3 &>/dev/null && apt-get purge -y gdm3 || true" "Remove GDM3 display manager"
 

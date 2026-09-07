@@ -161,6 +161,8 @@ via `sudo`.
 - Kernel module blacklisting (cramfs, usb-storage, dccp, sctp, …); secure
   tmpfs mounts for `/tmp`, `/dev/shm`, `/var/tmp`
 - 4G swapfile with `vm.swappiness=10`, created before the AIDE baseline
+- Vim leaves mouse selection to the terminal emulator, so remote terminal
+  copy/paste works normally; users can opt into Vim mouse support themselves
 - SSH drop-in at `/etc/ssh/sshd_config.d/50-cis-hardening.conf`: cipher/MAC
   hardening, verbose logging — **does not overwrite Phase 1 settings**
 - PAM: faillock (4 attempts, 15 min lock), pwquality (14-char min),
